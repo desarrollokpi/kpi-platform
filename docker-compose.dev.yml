@@ -1,0 +1,58 @@
+services:
+  client:
+    platform: linux/x86_64
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: kpi-client
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    restart: unless-stopped
+    env_file:
+      - ./client/.env.dev
+    develop:
+      watch:
+        - action: rebuild
+          path: ./client/package.json
+        - action: rebuild
+          path: ./client/pnpm-lock.yaml
+
+  server:
+    platform: linux/x86_64
+    depends_on:
+      - redis
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: kpi-server
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    restart: unless-stopped
+    env_file:
+      - ./server/config/.env.dev
+    develop:
+      watch:
+        - action: rebuild
+          path: ./server/package.json
+        - action: rebuild
+          path: ./server/pnpm-lock.yaml
+
+  redis:
+    image: redis
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning
+    volumes: 
+      - redis:/data
+
+volumes:
+  redis:
+    driver: local

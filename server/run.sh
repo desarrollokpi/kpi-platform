@@ -1,0 +1,1 @@
+screen -S backend npm run server

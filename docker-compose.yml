@@ -1,0 +1,36 @@
+services:
+  client:
+    platform: linux/x86_64
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: kpi-client
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+  server:
+    platform: linux/x86_64
+    depends_on:
+      - redis
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kpi-server
+    ports:
+      - "5050:5050"
+    restart: unless-stopped
+    env_file:
+      - ./server/.env 
+  redis:
+    image: redis
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning
+    volumes: 
+      - redis:/data
+
+volumes:
+  redis:
+    driver: local
