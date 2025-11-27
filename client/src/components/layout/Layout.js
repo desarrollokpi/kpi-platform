@@ -1,43 +1,44 @@
-import { Grid } from '@mui/material'
-import React from 'react'
-import AppBar from './AppBar'
-import Navigation from './Navigation'
-import Alerts from './Alerts'
-import { useSelector } from 'react-redux'
-import roles from './../../constants/roles'
-import useTermsAndConditions from './../../hooks/useTermsAndConditions'
-import useSessionTimeAvailable from '../../hooks/useSessionTimeAvailable'
-import { ToastContainer } from 'react-toastify'
+import React, { useMemo } from "react";
+import { useSelector, shallowEqual } from "react-redux";
+import { Grid } from "@mui/material";
+import { ToastContainer } from "react-toastify";
+
+import AppBar from "./AppBar";
+import Navigation from "./Navigation";
+import roles from "./../../constants/roles";
+import useSessionTimeAvailable from "../../hooks/useSessionTimeAvailable";
 
 const Layout = ({ children }) => {
-  const { user } = useSelector(state => state.auth)
-  const isAdmin = user?.role === roles.ADMIN
-  const isSuperuser = user?.role === roles.SUPERUSER
-  const userAcceptedTermsAndConditions = useTermsAndConditions()
+  const { user } = useSelector((state) => state.auth, shallowEqual);
 
-  const isAdminOrSuperuser =
-    (isAdmin && userAcceptedTermsAndConditions) || isSuperuser
-    
-  useSessionTimeAvailable()
+  const isAdminOrSuperuser = useMemo(() => {
+    if (!user) return false;
+
+    const userRoles = Array.isArray(user.roles) ? user.roles : user?.role ? [user.role] : [];
+
+    return userRoles.includes(roles.ADMIN) || userRoles.includes(roles.ROOT);
+  }, [user]);
+
+  useSessionTimeAvailable();
 
   return (
     <>
-      <ToastContainer/>
+      <ToastContainer />
       <AppBar />
 
-      <Grid my={5} container>
+      <Grid container my={5}>
         {isAdminOrSuperuser && (
           <Grid item xs={12} md={2}>
             <Navigation />
           </Grid>
         )}
-        <Grid xs={12} md={isAdmin || isSuperuser ? 10 : 12} item>
-          {/* <Alerts /> */}
+
+        <Grid item xs={12} md={isAdminOrSuperuser ? 10 : 12}>
           {children}
         </Grid>
       </Grid>
     </>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

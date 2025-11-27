@@ -1,169 +1,230 @@
-const connection = require('../../database')
-const usersQueries = require('./users.queries')
+const { db } = require("../../database");
+const { eq, and, isNull, ne } = require("drizzle-orm");
+const { users, roles, usersRoles } = require("../db/schema");
 
-exports.createUserByAdmin = async (user, adminId) => {
-  return new Promise(resolve => {
-    connection.query(
-      usersQueries.CREATE_USER_BY_ADMIN,
-      [
-        adminId,
-        user.username,
-        user.name,
-        user.mail,
-        user.password,
-        user.active,
-      ],
-      (error, result) => {
-        if (error) throw error
+exports.createUser = async (userData) => {
+  const result = await db.insert(users).values({
+    accountsId: userData.accountId ?? null,
+    userName: userData.username,
+    name: userData.name ?? null,
+    mail: userData.mail,
+    password: userData.password,
+    active: userData.active !== undefined ? userData.active : true,
+  });
+  return result[0];
+};
 
-        return resolve(result.insertId)
-      }
-    )
-  })
-}
-
-exports.createReportGroupsInUser = async (userId, reportGroups) => {
-  const mappedReportGroups = reportGroups.map(reportGroup => [
-    userId,
-    reportGroup,
-  ])
-
-  connection.query(
-    usersQueries.CREATE_REPORT_GROUPS_IN_USER,
-    [mappedReportGroups],
-    (error, result) => {
-      if (error) throw error
-    }
-  )
-}
-
-exports.readProfile = async userId => {
-  return new Promise(resolve => {
-    connection.query(usersQueries.READ_PROFILE, [userId], (error, result) => {
-      if (error) throw error
-
-      const user = result.pop()
-
-      return resolve(user)
+exports.findById = async (id) => {
+  const result = await db
+    .select({
+      id: users.id,
+      accountsId: users.accountsId,
+      userName: users.userName,
+      name: users.name,
+      mail: users.mail,
+      password: users.password,
+      active: users.active,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
     })
-  })
-}
+    .from(users)
+    .where(and(eq(users.id, id), isNull(users.deletedAt)))
+    .limit(1);
+  return result[0] || null;
+};
 
-exports.readSubdomain = async subdomain => {
-  return new Promise(resolve => {
-    connection.query(
-      usersQueries.READ_USERS_WORKSPACE,
-      [subdomain],
-      (error, result) => {
-        if (error) throw error
+exports.findByIdWithRoles = async (id) => {
+  const usersResult = await db
+    .select({
+      id: users.id,
+      accountsId: users.accountsId,
+      userName: users.userName,
+      name: users.name,
+      mail: users.mail,
+      password: users.password,
+      active: users.active,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
+    .from(users)
+    .where(and(eq(users.id, id), isNull(users.deletedAt)))
+    .limit(1);
 
-        const user = result
+  const user = usersResult[0];
+  if (!user) {
+    return null;
+  }
 
-        return resolve(user)
-      }
+  const rolesResult = await db
+    .select({
+      id: roles.id,
+      name: roles.name,
+    })
+    .from(usersRoles)
+    .innerJoin(
+      roles,
+      and(eq(usersRoles.rolesId, roles.id), isNull(roles.deletedAt))
     )
-  })
-}
+    .where(and(eq(usersRoles.usersId, id), isNull(usersRoles.deletedAt)));
 
-exports.readByName = async name => {
-  return new Promise((resolve, reject) =>
-    connection.query(
-      usersQueries.READ_BY_NAME,
-      [name],
-      async (error, result) => {
-        if (error) throw reject(error)
+  const rolesList = rolesResult
+    .filter((row) => row.id !== null)
+    .map((row) => ({ id: row.id, name: row.name }));
 
-        const user = result.pop()
+  return {
+    ...user,
+    roles: rolesList,
+  };
+};
 
-        return resolve(user)
-      }
-    )
-  )
-}
+exports.findByEmail = async (email) => {
+  const result = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.mail, email), isNull(users.deletedAt)))
+    .limit(1);
+  return result[0] || null;
+};
 
-exports.readUsersByAdminId = async adminId => {
-  return new Promise(resolve => {
-    connection.query(
-      usersQueries.READ_USERS_BY_ADMIN_ID,
-      [adminId],
-      (error, result) => {
-        if (error) throw error
+exports.findByUsername = async (username) => {
+  const result = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.userName, username), isNull(users.deletedAt)))
+    .limit(1);
+  return result[0] || null;
+};
 
-        return resolve(result)
-      }
-    )
-  })
-}
+exports.findAll = async (options = {}) => {
+  const { active, accountsId, limit, offset } = options;
 
-exports.readUsersReportsGroupsByAdmin = async adminId => {
-  return new Promise(resolve => {
-    connection.query(
-      usersQueries.READ_USER_REPORTS_GROUPS_BY_ADMIN,
-      [adminId],
-      (error, result) => {
-        if (error) throw error
+  let conditions = [isNull(users.deletedAt)];
 
-        return resolve(result)
-      }
-    )
-  })
-}
+  if (active !== undefined) {
+    conditions.push(eq(users.active, active));
+  }
 
-exports.updateUserPasswordByUser = async (userId, newPassword) => {
-  connection.query(
-    usersQueries.UPDATE_PASSWORD_BY_USER,
-    [newPassword, userId],
-    (error, result) => {
-      if (error) throw error
-    }
-  )
-}
+  if (accountsId !== undefined) {
+    conditions.push(eq(users.accountsId, accountsId));
+  }
 
-exports.updateUserByAdmin = async (
-  adminId,
-  userId,
-  username,
-  name,
-  mail,
-  active
-) => {
-  connection.query(
-    usersQueries.UPDATE_USER_BY_ADMIN,
-    [username, name, mail, active, userId, adminId],
-    (error, result) => {
-      if (error) throw error
-    }
-  )
-}
+  let query = db
+    .select({
+      id: users.id,
+      accountsId: users.accountsId,
+      userName: users.userName,
+      name: users.name,
+      mail: users.mail,
+      active: users.active,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
+    .from(users)
+    .where(and(...conditions));
 
-exports.connectUserToReportGroups = async (userId, reportGroupsIds) => {
-  const values = reportGroupsIds.map(id => [userId, id])
+  if (limit) {
+    query = query.limit(limit);
+  }
 
-  connection.query(
-    usersQueries.CONNECT_USER_TO_REPORT_GROUPS,
-    [values],
-    async error => {
-      if (error) throw error
-    }
-  )
-}
+  if (offset) {
+    query = query.offset(offset);
+  }
 
-exports.deleteConnectionUserToReportGroups = async userId => {
-  connection.query(
-    usersQueries.DELETE_CONNECTION_USER_TO_REPORT_GROUPS,
-    [userId],
-    async error => {
-      if (error) throw error
-    }
-  )
-}
+  return await query;
+};
 
-exports.deleteReportGroupsInUser = async userId => {
-  connection.query(
-    usersQueries.DELETE_REPORT_GROUPS_IN_USER,
-    [userId],
-    (error, _) => {
-      if (error) throw error
-    }
-  )
-}
+exports.count = async (activeOnly = false, accountsId = null) => {
+  const conditions = [isNull(users.deletedAt)];
+
+  if (activeOnly) {
+    conditions.push(eq(users.active, true));
+  }
+
+  if (accountsId !== null) {
+    conditions.push(eq(users.accountsId, accountsId));
+  }
+
+  const result = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(...conditions));
+
+  return result.length;
+};
+
+exports.findByAccountId = async (accountId) => {
+  return await db
+    .select({
+      id: users.id,
+      accountsId: users.accountsId,
+      userName: users.userName,
+      name: users.name,
+      mail: users.mail,
+      active: users.active,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
+    .from(users)
+    .where(and(eq(users.accountsId, accountId), isNull(users.deletedAt)));
+};
+
+exports.updateUser = async (id, data) => {
+  const updateData = {};
+
+  if (data.username !== undefined) updateData.userName = data.username;
+  if (data.mail !== undefined) updateData.mail = data.mail;
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.active !== undefined) updateData.active = data.active;
+
+  updateData.updatedAt = new Date();
+
+  return await db.update(users).set(updateData).where(eq(users.id, id));
+};
+
+exports.softDelete = async (id) => {
+  return await db.update(users).set({ active: false, deletedAt: new Date() }).where(eq(users.id, id));
+};
+
+exports.activate = async (id) => {
+  return await db.update(users).set({ active: true, updatedAt: new Date() }).where(eq(users.id, id));
+};
+
+exports.deactivate = async (id) => {
+  return await db.update(users).set({ active: false, updatedAt: new Date() }).where(eq(users.id, id));
+};
+
+exports.updatePassword = async (id, hashedPassword) => {
+  return await db.update(users).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(users.id, id));
+};
+
+exports.emailExists = async (email, excludeId = null) => {
+  const conditions = [eq(users.mail, email), isNull(users.deletedAt)];
+
+  if (excludeId) {
+    conditions.push(ne(users.id, excludeId));
+  }
+
+  const result = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(...conditions));
+
+  return result.length > 0;
+};
+
+exports.usernameExists = async (username, excludeId = null) => {
+  const conditions = [eq(users.userName, username), isNull(users.deletedAt)];
+
+  if (excludeId) {
+    conditions.push(ne(users.id, excludeId));
+  }
+
+  const result = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(...conditions));
+
+  return result.length > 0;
+};
+
+module.exports = exports;

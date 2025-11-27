@@ -1,92 +1,228 @@
 // Pages
-import ReportGroupsPage from "./pages/ReportGroupsPage";
-import TestingPage from "./pages/TestingPage";
-import UsersPage from "./pages/UsersPage";
-import UsersGroupsPage from "./pages/UsersGroupsPage";
-import ReportsPage from "./pages/ReportsPage";
-import AccountPage from "./pages/AccountPage";
-
-// Page like Components
-import ManageUser from "./components/users/ManageUser";
+// Admin/User Management Components
 import ChangeUserPassword from "./components/users/ChangeUserPassword";
-import ManageReportsGroup from "./components/reports/ManageReportsGroup";
-import ManageUsersGroups from "./components/usersGroups/ManageUsersGroups";
-import ChangePassword from "./pages/ChangePassword";
-
-// User pages
-import UserReportsPage from "./pages/UserReportsPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import ChangeUserPasswordByUser from "./pages/ChangeUserPasswordByUser";
 
-// Superuser pages
-import AdminsPage from "./pages/AdminsPage";
+// Root Admin pages
+import AccountsPage from "./pages/AccountsPage";
+import DashboardsPage from "./pages/DashboardsPage";
+import InstancesPage from "./pages/InstancesPage";
+import ReportsPage from "./pages/ReportsPage";
+import WorkspacePage from "./pages/WorkspacePage";
+import ShowDashboardPage from "./pages/ShowDashboardPage";
+import UsersPage from "./pages/UsersPage";
+import ManageAccountPage from "./pages/ManageAccountPage";
+import ManageInstancePage from "./pages/ManageInstancePage";
+import ManageDashboardPage from "./pages/ManageDashboardPage";
+import ManageWorkspacePage from "./pages/ManageWorkspacePage";
+import ManageReportPage from "./pages/ManageReportPage";
+import ManageUserPage from "./pages/ManageUserPage";
+import AssignDashboardsToUser from "./components/usersDashboards/AssignDashboardsToUser";
 
-export const superuserRoutes = {
-  admins: {
-    path: "/admins",
-    element: AdminsPage,
+export const rootAdminRoutes = {
+  // Accounts, OK
+  accounts: {
+    name: "Cuentas",
+    path: "/accounts",
+    element: AccountsPage,
   },
-};
-
-export const adminsRoutes = {
-  // testingPage: {
-  //   path: "/testing-page",
-  //   element: TestingPage,
-  // },
-  reportsGroups: {
-    path: "/reports-groups",
-    element: ReportGroupsPage,
+  createAccount: {
+    name: "Crear Cuenta",
+    path: "/accounts/create",
+    element: ManageAccountPage,
   },
+  updateAccount: {
+    name: "Editar Cuenta",
+    path: "/accounts/update/:accountId",
+    element: ManageAccountPage,
+  },
+  // Instances, Ok
+  instances: {
+    name: "Instancias",
+    path: "/instances",
+    element: InstancesPage,
+  },
+  createInstance: {
+    name: "Crear Instancia",
+    path: "/instances/create",
+    element: ManageInstancePage,
+  },
+  updateInstance: {
+    name: "Editar Instancia",
+    path: "/instances/update/:instanceId",
+    element: ManageInstancePage,
+  },
+  // Workspaces, ok
+  workspaces: {
+    name: "Workspaces",
+    path: "/workspaces",
+    element: WorkspacePage,
+  },
+  createWorkspace: {
+    name: "Crear Workspace",
+    path: "/workspaces/create",
+    element: ManageWorkspacePage,
+  },
+  updateWorkspace: {
+    name: "Editar Workspace",
+    path: "/workspaces/update/:workspaceId",
+    element: ManageWorkspacePage,
+  },
+  // Reportes, ok
+  reports: {
+    name: "Reportes",
+    path: "/reports",
+    element: ReportsPage,
+  },
+  createReport: {
+    name: "Crear Reporte",
+    path: "/reports/create",
+    element: ManageReportPage,
+  },
+  updateReport: {
+    name: "Editar Reporte",
+    path: "/reports/update/:reportId",
+    element: ManageReportPage,
+  },
+  // Dashboards
+  dashboards: {
+    name: "Dashboards",
+    path: "/dashboards",
+    element: DashboardsPage,
+  },
+  createDashboard: {
+    name: "Crear Dashboard",
+    path: "/dashboards/create",
+    element: ManageDashboardPage,
+  },
+  updateDashboard: {
+    name: "Editar Dashboard",
+    path: "/dashboards/update/:dashboardId",
+    element: ManageDashboardPage,
+  },
+  showDashboard: {
+    name: "Mostrar Panel",
+    path: "/showDashboard/:dashboardId",
+    element: ShowDashboardPage,
+  },
+  // Users
   users: {
+    name: "Usuarios",
     path: "/users",
     element: UsersPage,
   },
   createUser: {
+    name: "Crear Usuario",
     path: "/users/create",
-    element: ManageUser,
-  },
-  usersGroups: {
-    path: "/user-groups",
-    element: UsersGroupsPage,
-  },
-  createUsersGroup: {
-    path: "/user-groups/create",
-    element: ManageUsersGroups,
-  },
-  updateUsersGroups: {
-    path: "/user-groups/update/:usersGroupId",
-    element: ManageUsersGroups,
+    element: ManageUserPage,
   },
   updateUser: {
+    name: "Editar Usuario",
     path: "/users/update/:userId",
-    element: ManageUser,
+    element: ManageUserPage,
   },
   changeUserPassword: {
-    path: "/users/change-password/:userId",
+    name: "Cambiar Contraseña Usuario",
+    path: "/users/changePassword/:userId",
     element: ChangeUserPassword,
   },
-  showReport: {
-    path: "/show-report",
+  assignDashboardsToUser: {
+    name: "Asignar Dashboards",
+    path: "/users/:userId/assignDashboards",
+    element: AssignDashboardsToUser,
+  },
+};
+
+export const adminsRoutes = {
+  // User Management (Tenant Admin manages users in their account)
+  users: {
+    name: "Usuarios",
+    path: "/users",
+    element: UsersPage,
+  },
+  createUser: {
+    name: "Crear Usuario",
+    path: "/users/create",
+    element: ManageUserPage,
+  },
+  updateUser: {
+    name: "Editar Usuario",
+    path: "/users/update/:userId",
+    element: ManageUserPage,
+  },
+  changeUserPassword: {
+    name: "Cambiar Contraseña Usuario",
+    path: "/users/changePassword/:userId",
+    element: ChangeUserPassword,
+  },
+  assignDashboardsToUser: {
+    name: "Asignar Dashboards",
+    path: "/users/:userId/assignDashboards",
+    element: AssignDashboardsToUser,
+  },
+
+  // Reports Management (filtered by account)
+  reports: {
+    name: "Reportes",
+    path: "/reports",
     element: ReportsPage,
   },
-  createReportsGroup: {
-    path: "/reports-groups/create",
-    element: ManageReportsGroup,
+  createReport: {
+    name: "Crear Reporte",
+    path: "/reports/create",
+    element: ManageReportPage,
   },
-  updateReportsGroup: {
-    path: "/reports-groups/update/:reportsGroupId",
-    element: ManageReportsGroup,
+  updateReport: {
+    name: "Editar Reporte",
+    path: "/reports/update/:reportId",
+    element: ManageReportPage,
   },
-  account: {
-    path: "/account",
-    element: AccountPage,
+
+  // Dashboard Management (filtered by account)
+  dashboards: {
+    name: "Dashboards",
+    path: "/dashboards",
+    element: DashboardsPage,
   },
-  changePassword: { path: "/change-password", element: ChangePassword },
+  createDashboard: {
+    name: "Crear Dashboard",
+    path: "/dashboards/create",
+    element: ManageDashboardPage,
+  },
+  updateDashboard: {
+    name: "Editar Dashboard",
+    path: "/dashboards/update/:dashboardId",
+    element: ManageDashboardPage,
+  },
+  showDashboard: {
+    name: "Ver Dashboard",
+    path: "/showDashboard/:dashboardId",
+    element: ShowDashboardPage,
+  },
+
+  // Account Settings
+  changePassword: {
+    name: "Cambiar Mi Contraseña",
+    path: "/changePassword",
+    element: ChangePasswordPage,
+  },
 };
 
 export const usersRoutes = {
   changePassword: {
-    path: "/change-password",
+    name: "Cambiar Contraseña",
+    path: "/changePassword",
     element: ChangeUserPasswordByUser,
   },
-  showReport: { path: "/reports", element: UserReportsPage },
+  listDashboards: {
+    name: "Paneles de información",
+    path: "/dashboards",
+    element: DashboardsPage,
+  },
+  showDashboard: {
+    name: "Mostrar Panel",
+    path: "/showDashboard/:dashboardId",
+    element: ShowDashboardPage,
+  },
 };

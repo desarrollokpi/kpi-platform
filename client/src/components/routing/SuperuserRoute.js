@@ -1,32 +1,34 @@
-import React, { useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { Navigate } from 'react-router-dom'
-import Layout from '../layout/Layout'
-import useSuperuser from '../../hooks/useSuperuser'
-import roles from '../../constants/roles'
-import { readProfile } from '../../state/auth/authActions'
-import LayoutLoading from '../layout/LayoutLoading'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { Navigate } from "react-router-dom";
+
+import Layout from "../layout/Layout";
+import LayoutLoading from "../layout/LayoutLoading";
+
+import useSuperuser from "../../hooks/useSuperuser";
+import { readProfile } from "../../state/auth/authActions";
 
 const SuperuserRoute = ({ children }) => {
-  const dispatch = useDispatch()
-  const navigate = useNavigate()
+  const dispatch = useDispatch();
 
-  const isSuperuser = useSuperuser()
-
-  const { loading: authLoading, user } = useSelector(state => state.auth)
+  const { isSuperuser, loading: superuserLoading } = useSuperuser();
+  const { user, loading: authLoading } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    if (!isSuperuser) navigate('/login')
-  }, [isSuperuser, navigate])
+    if (!user) {
+      dispatch(readProfile());
+    }
+  }, [dispatch, user]);
 
-  useEffect(() => {
-    dispatch(readProfile(roles.SUPERUSER))
-  }, [dispatch])
+  if ((authLoading || superuserLoading) && !user) {
+    return <LayoutLoading />;
+  }
 
-  if (authLoading && !user) return <LayoutLoading />
+  if (!isSuperuser) {
+    return <Navigate to="/login" replace />;
+  }
 
-  return isSuperuser ? <Layout>{children}</Layout> : <Navigate to='/login' />
-}
+  return <Layout>{children}</Layout>;
+};
 
-export default SuperuserRoute
+export default SuperuserRoute;

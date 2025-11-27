@@ -1,69 +1,69 @@
-import {
-  ERROR,
-  LOADING,
-  READ_PROFILE,
-  SIGN_IN,
-  CLEAR_MESSAGE,
-  SIGN_OUT,
-  TIME_AVAILABLE
-} from './authTypes'
-import axios from 'axios'
+import { ERROR, LOADING, READ_PROFILE, SIGN_IN, CLEAR_MESSAGE, SIGN_OUT, TIME_AVAILABLE } from "./authTypes";
+import axios from "axios";
+import { config } from "../../util/state";
 
-import { config } from '../../util/state'
+const extractErrorMessage = (error) => error?.response?.data?.message || error?.message || "Unexpected error";
 
-export const clearMessage = () => dispatch => {
-  dispatch({ type: CLEAR_MESSAGE })
-}
+const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
 
-export const setLoading =
-  (loading = true) =>
-  dispatch =>
-    dispatch({ type: LOADING, payload: loading })
+const dispatchError = (dispatch, error, { invalidateSession = false } = {}) =>
+  dispatch({
+    type: ERROR,
+    payload: {
+      message: extractErrorMessage(error),
+      invalidateSession,
+    },
+  });
 
-export const signIn = (userType, credentials) => async dispatch => {
-  setLoading()(dispatch)
+export const clearMessage = () => (dispatch) => dispatch({ type: CLEAR_MESSAGE });
 
+export const signIn = (credentials) => async (dispatch) => {
+  setLoading(dispatch, true);
   try {
-    const res = await axios.post(`/${userType}/signIn`, credentials, {
+    const res = await axios.post(`/auth/signIn`, credentials, {
       ...config,
       withCredentials: true,
-    })
-    dispatch({ type: SIGN_IN, payload: res.data })
+    });
+    dispatch({ type: SIGN_IN, payload: res.data });
   } catch (error) {
-    dispatch({ type: ERROR, payload: error.response.data.message })
+    dispatchError(dispatch, error, { invalidateSession: true });
+  } finally {
+    setLoading(dispatch, false);
   }
-}
+};
 
-export const readProfile = userType => async dispatch => {
-  setLoading()(dispatch)
-
+export const readProfile = () => async (dispatch) => {
+  setLoading(dispatch, true);
   try {
-    const res = await axios.get(`/${userType}/profile`)
-    dispatch({ type: READ_PROFILE, payload: res.data })
+    const res = await axios.get(`/auth/me`, { withCredentials: true });
+    dispatch({ type: READ_PROFILE, payload: res.data });
   } catch (error) {
-    dispatch({ type: ERROR, payload: error.response.data.message })
+    dispatchError(dispatch, error, { invalidateSession: true });
+  } finally {
+    setLoading(dispatch, false);
   }
-}
+};
 
-export const signOut = userType => async dispatch => {
-  setLoading()(dispatch)
-
+export const signOut = () => async (dispatch) => {
+  setLoading(dispatch, true);
   try {
-    await axios.post(`/${userType}/signOut`)
-    dispatch({ type: SIGN_OUT })
+    await axios.post(`/auth/signOut`, null, { withCredentials: true });
+    dispatch({ type: SIGN_OUT });
   } catch (error) {
-    dispatch({ type: ERROR, payload: error.response.data.message })
+    dispatchError(dispatch, error);
+  } finally {
+    setLoading(dispatch, false);
   }
-}
+};
 
-export const getTimeAvailable = userType => async dispatch => {
-  setLoading()(dispatch)
-
+export const getTimeAvailable = () => async (dispatch) => {
+  setLoading(dispatch, true);
   try {
-    const res = await axios.get(`/${userType}/timeAvailable`)
-    dispatch({ type: TIME_AVAILABLE, payload: res.data })
+    const res = await axios.get(`/auth/timeAvailable`, { withCredentials: true });
+    dispatch({ type: TIME_AVAILABLE, payload: res.data });
   } catch (error) {
-    console.log('error', error)
-    dispatch({ type: ERROR, payload: error.response.data.message })
+    dispatchError(dispatch, error, { invalidateSession: true });
+  } finally {
+    setLoading(dispatch, false);
   }
-}
+};

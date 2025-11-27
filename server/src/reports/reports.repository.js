@@ -1,149 +1,88 @@
-const connection = require('../../database')
-const reportsQueries = require('./reports.queries')
+const { db } = require("../../database");
+const { eq, and, isNull, sql } = require("drizzle-orm");
+const { reports } = require("../db/schema");
 
-exports.createReportByAdmin = async (adminId, reportId, workspaceId) => {
-  connection.query(
-    reportsQueries.CREATE_REPORT_BY_ADMIN,
-    [reportId, workspaceId, adminId],
-    (error, result) => {
-      if (error) throw error
-    }
-  )
-}
+exports.createReport = async (reportData) => {
+  const [result] = await db.insert(reports).values(reportData);
+  return result;
+};
 
-exports.createReportGroupByAdmin = async (adminId, code, name, active) => {
-  return new Promise(resolve => {
-    connection.query(
-      reportsQueries.CREARE_REPORT_GROUP_BY_ADMIN,
-      [adminId, code, name, active],
-      (error, result) => {
-        if (error) throw error
+exports.findById = async (id) => {
+  const result = await db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.id, id), isNull(reports.deletedAt)))
+    .limit(1);
+  return result[0] || null;
+};
 
-        resolve(result.insertId)
-      }
-    )
-  })
-}
+exports.findAll = async (options = {}) => {
+  const { active, limit, offset } = options;
 
-exports.createSectionsInReportGroup = async (reportGroupId, sections) => {
-  const mappedSections = sections.map(section => [
-    reportGroupId,
-    section.sectionId,
-    section.reportId,
-  ])
+  let conditions = [isNull(reports.deletedAt)];
 
-  connection.query(
-    reportsQueries.CREATE_SECTIONS_IN_REPORT_GROUP,
-    [mappedSections],
-    (error, result) => {
-      if (error) throw error
-    }
-  )
-}
+  if (active !== undefined) {
+    conditions.push(eq(reports.active, active));
+  }
 
-exports.readReportGroupsByAdmin = async adminId => {
-  return new Promise(resolve => {
-    connection.query(
-      reportsQueries.READ_REPORT_GROUPS_BY_ADMIN,
-      [adminId],
-      (error, result) => {
-        if (error) throw error
+  let query = db
+    .select()
+    .from(reports)
+    .where(and(...conditions));
 
-        resolve(result)
-      }
-    )
-  })
-}
+  if (limit) {
+    query = query.limit(limit);
+  }
 
-exports.readReportsByUser = async userId => {
-  return new Promise(resolve => {
-    connection.query(
-      reportsQueries.READ_REPORTS_BY_USER,
-      [userId],
-      (error, result) => {
-        if (error) throw error
+  if (offset) {
+    query = query.offset(offset);
+  }
 
-        resolve(result)
-      }
-    )
-  })
-}
+  return await query;
+};
 
-exports.readReportsByAdmin = async adminId => {
-  return new Promise(resolve => {
-    connection.query(
-      reportsQueries.READ_REPORTS_BY_ADMIN,
-      [adminId],
-      (error, result) => {
-        if (error) throw error
+exports.getForSelect = async () => {
+  return await db
+    .select({ label: reports.name, value: reports.id })
+    .from(reports)
+    .where(and(eq(reports.active, true), isNull(reports.deletedAt)));
+};
 
-        resolve(result)
-      }
-    )
-  })
-}
+exports.count = async (activeOnly = false) => {
+  const conditions = [isNull(reports.deletedAt)];
 
-exports.readUsersReportsByAdmin = async adminId => {
-  return new Promise(resolve => {
-    connection.query(
-      reportsQueries.READ_USERS_REPORTS_BY_ADMIN,
-      [adminId],
-      (error, result) => {
-        if (error) throw error
+  if (activeOnly) {
+    conditions.push(eq(reports.active, true));
+  }
 
-        resolve(result)
-      }
-    )
-  })
-}
+  const result = await db
+    .select({ count: sql`COUNT(*)` })
+    .from(reports)
+    .where(and(...conditions));
 
-exports.updateReportActiveStateByAdmin = async (
-  adminId,
-  reportId,
-  active,
-  workspaceId
-) => {
-  connection.query(
-    reportsQueries.UPDATE_REPORT_ACTIVE_STATE_BY_ADMIN,
-    [active, adminId, reportId, workspaceId],
-    (error, result) => {
-      if (error) throw error
-    }
-  )
-}
+  return result[0].count;
+};
 
-exports.updateReportGroupByAdmin = async (
-  adminId,
-  reportGroupId,
-  code,
-  name,
-  active
-) => {
-  connection.query(
-    reportsQueries.UPDATE_REPORT_GROUP_BY_ADMIN,
-    [code, name, active, adminId, reportGroupId],
-    (error, result) => {
-      if (error) throw error
-    }
-  )
-}
+exports.findByWorkspace = async (workspaceId) => {
+  return await db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.workspacesId, workspaceId), isNull(reports.deletedAt)));
+};
 
-exports.deleteReportByAdmin = async (reportId, workspaceId, adminId) => {
-  connection.query(
-    reportsQueries.DELETE_REPORT_BY_ADMIN,
-    [reportId, workspaceId, adminId],
-    (error, _) => {
-      if (error) throw error
-    }
-  )
-}
+exports.updateReport = async (id, data) => {
+  return await db
+    .update(reports)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(reports.id, id));
+};
 
-exports.deleteSectionsInReportGroup = async reportGroupId => {
-  connection.query(
-    reportsQueries.DELETE_SECTIONS_IN_REPORT_GROUP,
-    [reportGroupId],
-    (error, _) => {
-      if (error) throw error
-    }
-  )
-}
+exports.softDelete = async (id) => {
+  return await db.update(reports).set({ active: false, deletedAt: new Date() }).where(eq(reports.id, id));
+};
+
+exports.activate = async (id) => {
+  return await db.update(reports).set({ active: true, deletedAt: null, updatedAt: new Date() }).where(eq(reports.id, id));
+};
+
+module.exports = exports;

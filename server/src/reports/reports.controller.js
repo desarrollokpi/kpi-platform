@@ -1,118 +1,117 @@
-const reportsServices = require('./reports.services')
+const reportsServices = require("./reports.services");
 
-exports.createReportGroupByAdmin = async (req, res) => {
+exports.createReport = async (req, res, next) => {
   try {
-    const { code, name, active, sections } = req.body
+    const { workspacesId, name, active } = req.body;
 
-    await reportsServices.createReportGroupByAdmin(
-      req.userId,
-      code,
+    const report = await reportsServices.createReport({
+      workspacesId,
       name,
       active,
-      sections
-    )
+    });
 
-    res.send({ message: 'Grupo de reportes creado exitosamente' })
+    res.status(201).json({
+      message: "Reporte creado exitosamente",
+      report,
+    });
   } catch (error) {
-    return res.status(400).send(error.stack)
+    next(error);
   }
-}
+};
 
-exports.readReportGroupsByAdmin = async (req, res) => {
+exports.getReportById = async (req, res, next) => {
   try {
-    const reportGroups = await reportsServices.readReportGroupsByAdmin(
-      req.userId
-    )
+    const { id } = req.params;
 
-    res.send(reportGroups)
+    const report = await reportsServices.getReportById(parseInt(id));
+
+    res.json({ report });
   } catch (error) {
-    return res.status(400).send(error)
+    next(error);
   }
-}
+};
 
-exports.readReportsByAdmin = async (req, res) => {
+exports.getAllReports = async (req, res, next) => {
   try {
-    const reports = await reportsServices.readReportsByAdmin(req.userId)
+    const { active, limit, offset, listed = "false" } = req.query;
 
-    res.send(reports)
+    if (listed === "true") {
+      const list = await reportsServices.getReportsForSelect();
+      return res.json(list);
+    }
+
+    const options = {};
+    if (active !== undefined) options.active = active === "true";
+    if (limit) options.limit = parseInt(limit);
+    if (offset) options.offset = parseInt(offset);
+
+    const reports = await reportsServices.getAllReports(options);
+
+    const totalCount = limit || offset ? await reportsServices.getReportCount(active === "true") : reports.length;
+
+    res.json({ reports, count: reports.length, totalCount });
   } catch (error) {
-    return res.status(400).send(error)
+    next(error);
   }
-}
+};
 
-exports.readReportsByUser = async (req, res) => {
-  const { userId, adminId } = req
-
+exports.updateReport = async (req, res, next) => {
   try {
-    const reports = await reportsServices.readReportsByUser(userId, adminId)
+    const { id } = req.params;
+    const { workspacesId, name, active } = req.body;
 
-    res.send(reports)
-  } catch (error) {
-    return res.status(400).send(error)
-  }
-}
-
-exports.readReportsByWorkspace = async (req, res) => {
-  const { workspaceId } = req.query
-
-  try {
-    const reports = await reportsServices.readReportsByWorkspace(workspaceId)
-
-    res.send(reports)
-  } catch (error) {
-    return res.status(400).send(error)
-  }
-}
-
-exports.readUsersReportsByAdmin = async (req, res) => {
-  try {
-    const reports = await reportsServices.readUsersReportsByAdmin(req.userId)
-
-    res.send(reports)
-  } catch (error) {
-    return res.status(400).send(error)
-  }
-}
-
-exports.updateReportGroupByAdmin = async (req, res) => {
-  const { reportGroupId } = req.params
-  const { code, name, active, sections } = req.body
-
-  try {
-    await reportsServices.updateReportGroupByAdmin(
-      req.userId,
-      reportGroupId,
-      code,
+    const report = await reportsServices.updateReport(parseInt(id), {
+      workspacesId,
       name,
       active,
-      sections
-    )
+    });
 
-    const reportGroups = await reportsServices.readReportGroupsByAdmin(
-      req.userId
-    )
-
-    res.send(reportGroups)
+    res.json({
+      message: "Reporte actualizado exitosamente",
+      report,
+    });
   } catch (error) {
-    return res.status(400).send(error.stack)
+    next(error);
   }
-}
+};
 
-exports.updateReportActiveStateByAdmin = async (req, res) => {
-  const { active, workspaceId } = req.body
-
+exports.deleteReport = async (req, res, next) => {
   try {
-    await reportsServices.updateReportActiveStateByAdmin(
-      req.userId,
-      req.params.reportId,
-      active,
-      workspaceId
-    )
+    const { id } = req.params;
 
-    const adminReports = await reportsServices.readReportsByAdmin(req.userId)
+    await reportsServices.deleteReport(parseInt(id));
 
-    res.send(adminReports)
+    res.json({
+      message: "Reporte eliminado exitosamente",
+    });
   } catch (error) {
-    return res.status(400).send(error)
+    next(error);
   }
-}
+};
+
+exports.activateReport = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const report = await reportsServices.activateReport(parseInt(id));
+
+    res.json({
+      message: "Reporte activado exitosamente",
+      report,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getReportsByWorkspace = async (req, res, next) => {
+  try {
+    const { workspaceId } = req.params;
+
+    const reports = await reportsServices.getReportsByWorkspace(parseInt(workspaceId));
+
+    res.json({ reports, count: reports.length });
+  } catch (error) {
+    next(error);
+  }
+};

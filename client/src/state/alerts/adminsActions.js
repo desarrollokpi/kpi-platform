@@ -4,6 +4,8 @@ import axios from 'axios'
 
 import { config } from '../../util/state'
 
+const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value })
+
 export const handleError = (dispatch, error) => {
   dispatch({ type: ERROR, payload: error.response.data })
   setTimeout(() => {
@@ -11,12 +13,8 @@ export const handleError = (dispatch, error) => {
   }, 3000)
 }
 
-export const setLoading = () => dispatch => {
-  return dispatch({ type: LOADING })
-}
-
 export const updateLogo = (logoFile, userName) => async dispatch => {
-  setLoading()(dispatch)
+  setLoading(dispatch, true)
 
   let data = new FormData()
   data.append('image', logoFile, userName)
@@ -30,5 +28,7 @@ export const updateLogo = (logoFile, userName) => async dispatch => {
     dispatch({ type: UPDATE_LOGO, payload: res.data })
   } catch (error) {
     handleError(dispatch, error)
+  } finally {
+    setLoading(dispatch, false)
   }
 }

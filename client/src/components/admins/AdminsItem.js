@@ -34,7 +34,7 @@ const AdminsItem = ({ admin }) => {
   }
 
   const handleChangePassword = () => {
-    navigate(`/admins/users/change-password/${admin.id}`)
+    navigate(`/admins/users/changePassword/${admin.id}`)
   }
 
   return (

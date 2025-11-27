@@ -1,93 +1,109 @@
-import {
-  List,
-  Paper,
-  Collapse,
-  Typography,
-  IconButton,
-  Grid,
-  Box,
-} from '@mui/material'
-import React from 'react'
-import NavItem from './NavItem'
-import useResponsive from './../../hooks/useResponsive'
-import MenuIcon from '@mui/icons-material/Menu'
+import React, { useMemo } from "react";
+import { List, Paper, Collapse, Typography, IconButton, Grid, Box } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 
-import { useSelector } from 'react-redux'
-import roles from '../../constants/roles'
+import NavItem from "./NavItem";
+import useResponsive from "./../../hooks/useResponsive";
+import useAdmin from "./../../hooks/useAdmin";
+import useSuperuser from "./../../hooks/useSuperuser";
+import useToggle from "../../hooks/useToggle";
+import { adminsRoutes, rootAdminRoutes } from "../../routes";
 
-import useToggle from '../../hooks/useToggle'
+// Decide si una ruta debe aparecer en la navegación
+const shouldShowInNav = (route) => {
+  if (!route) return false;
+
+  if (route.showInNav === false) return false;
+
+  const path = route.path || "";
+
+  return (
+    !path.includes("/create") && !path.includes("/update") && !path.includes("/changePassword") && !path.includes("/assignDashboards") && !path.includes("/:")
+  );
+};
+
+// Helper para construir el path final con prefijo
+const buildPathWithPrefix = (prefix, path) => {
+  const cleanPrefix = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${cleanPrefix}${cleanPath}`;
+};
+
+const NavigationItems = ({ links, basePath, onItemClick }) => {
+  if (!links || links.length === 0) return null;
+
+  return (
+    <List>
+      {links.map((link) => {
+        const finalPath = buildPathWithPrefix(basePath, link.path);
+
+        return (
+          <NavItem key={finalPath} to={finalPath} onClick={onItemClick} disabled={link.disabled}>
+            <Typography variant="body1">{link.name}</Typography>
+          </NavItem>
+        );
+      })}
+    </List>
+  );
+};
 
 const Navigation = () => {
-  const matchLg = useResponsive('lg')
-  const { user } = useSelector(state => state.auth)
-  const isAdmin = user?.role === roles.ADMIN
+  const matchLg = useResponsive("lg");
+  const { isAdmin } = useAdmin();
+  const { isSuperuser } = useSuperuser();
+  const [open, toggleOpen] = useToggle();
 
-  const adminLinks = [
-    { name: 'Grupos de reporte', to: '/admins/reports-groups' },
-    { name: 'Reportes', to: '/admins/show-report' },
-    { name: 'Usuarios', to: '/admins/users' },
-    { name: 'Cuenta', to: '/admins/account' },
-  ]
+  // Decidir rutas y prefijo según el rol
+  const { links, basePath } = useMemo(() => {
+    if (isSuperuser) {
+      return {
+        links: Object.values(rootAdminRoutes).filter(shouldShowInNav),
+        basePath: "/superusers",
+      };
+    }
 
-  const superuserLinks = [
-    { name: 'Administradores', to: '/superusers/admins' },
-    { name: 'Cuenta', to: '/admins/account', disabled: true },
-  ]
+    if (isAdmin) {
+      return {
+        links: Object.values(adminsRoutes).filter(shouldShowInNav),
+        basePath: "/admins",
+      };
+    }
 
-  const [open, toggleOpen] = useToggle()
+    return { links: [], basePath: "" };
+  }, [isAdmin, isSuperuser]);
 
-  const NavigationItems = ({ links }) => (
-    <List>
-      {links.map(link => (
-        <NavItem
-          key={link.to}
-          to={link.to}
-          onClick={toggleOpen}
-          disabled={link.disabled}
-        >
-          <Typography variant='body1'>{link.name}</Typography>
-        </NavItem>
-      ))}
-    </List>
-  )
-
-  const links = isAdmin ? adminLinks : superuserLinks
+  if (!links.length) return null;
 
   return (
     <>
       {matchLg ? (
-        <Paper className='navigation'>
-          <NavigationItems links={links} />
+        <Paper className="navigation">
+          <NavigationItems links={links} basePath={basePath} />
         </Paper>
       ) : (
-        <>
-          <Paper className='navigation-mobile'>
-            <Grid container alignItems='center' justifyContent='space-between'>
-              <Grid item xs={10}>
-                <Typography align='center' variant='body2'>
-                  Navegación
-                </Typography>
-              </Grid>
-              <Grid item xs={2}>
-                <IconButton onClick={toggleOpen}>
-                  <MenuIcon />
-                </IconButton>
-              </Grid>
+        <Paper className="navigation-mobile">
+          <Grid container alignItems="center" justifyContent="space-between">
+            <Grid item xs={10}>
+              <Typography align="center" variant="body2">
+                Navegación
+              </Typography>
             </Grid>
-            <Collapse in={open} timeout='auto' unmountOnExit>
-              <Box
-                sx={{
-                  padding: '20px',
-                }}
-              >
-                <NavigationItems links={links} />
-              </Box>
-            </Collapse>
-          </Paper>
-        </>
+            <Grid item xs={2}>
+              <IconButton onClick={toggleOpen}>
+                <MenuIcon />
+              </IconButton>
+            </Grid>
+          </Grid>
+
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ padding: "20px" }}>
+              <NavigationItems links={links} basePath={basePath} onItemClick={toggleOpen} />
+            </Box>
+          </Collapse>
+        </Paper>
       )}
     </>
-  )
-}
+  );
+};
 
-export default Navigation
+export default Navigation;

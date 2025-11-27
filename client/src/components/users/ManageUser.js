@@ -1,123 +1,133 @@
-import React from 'react'
-import { Grid, Paper, Button, Typography } from '@mui/material'
-import {
-  readReportGroupsByAdmin,
-  readReportsByAdmin,
-} from '../../state/reports/reportsActions'
+import React, { useEffect, useMemo } from "react";
+import { Grid, Paper, Button, Typography } from "@mui/material";
+import useForm from "../../hooks/useForm";
+import { useDispatch, useSelector, shallowEqual } from "react-redux";
+import { createUser, getAccountsLists, getRoleLists, updateUser } from "../../state/users/usersActions";
+import { useParams, useNavigate } from "react-router-dom";
+import useToggle from "../../hooks/useToggle";
+import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
+import useSuperuser from "../../hooks/useSuperuser";
+import useAdmin from "../../hooks/useAdmin";
+import LoadingButton from "@mui/lab/LoadingButton";
+import ManageUserForm from "./ManageUserForm";
+import CircularLoading from "../layout/CircularLoading";
 
-import useForm from '../../hooks/useForm'
-import { useDispatch } from 'react-redux'
-import { createUser, updateUser } from '../../state/users/usersActions'
-import { useParams } from 'react-router-dom'
-
-import { useNavigate } from 'react-router-dom'
-import useToggle from '../../hooks/useToggle'
-import useRead from '../../hooks/useRead'
-
-import { useSelector } from 'react-redux'
-import useSelectionList from '../../hooks/useSelectionList'
-import useNavigateAfterAction from './../../hooks/useNavigateAfterAction'
-import LoadingButton from '@mui/lab/LoadingButton'
-
-import ManageUserReportGroups from './ManageUserReportGroups'
-import ManageUserForm from './ManageUserForm'
-import CircularLoading from '@layout/CircularLoading'
-import CreateReportGroupButton from '../reports/CreateReportGroupButton'
+// Pedir role, perdir accounts
 
 const ManageUser = () => {
-  useRead(readReportGroupsByAdmin, readReportsByAdmin)
-  const dispatch = useDispatch()
-  const navigate = useNavigate()
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { isSuperuser } = useSuperuser();
+  const { isAdmin } = useAdmin();
 
-  const { reportsGroups, loading: reportsGroupLoading } = useSelector(
-    state => state.reports
-  )
-  const { users, loading } = useSelector(state => state.users)
+  const { users, loading, accountsList, rolesList } = useSelector(({ users }) => users, shallowEqual);
+  const { user: currentUser } = useSelector(({ auth }) => auth, shallowEqual);
+  const accountId = useMemo(() => currentUser?.accountId || null, [currentUser]);
+  const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
   const initialState = {
-    username: '',
-    mail: '',
-    name: '',
-    confirmMail: '',
-    password: '',
-    confirmPassword: '',
-  }
+    username: "",
+    name: "",
+    mail: "",
+    confirmMail: "",
+    password: "",
+    confirmPassword: "",
+    accountId: accountId | "",
+    roleId: "",
+  };
 
-  let thisUser = undefined
+  let thisUser = undefined;
 
-  const { userId } = useParams()
+  const { userId } = useParams();
 
   if (userId) {
-    thisUser = users.find(user => user.id === parseInt(userId))
-    thisUser = { ...thisUser, confirmMail: thisUser.mail }
+    thisUser = users.find((user) => user.id === parseInt(userId));
+    if (thisUser) {
+      thisUser = { ...thisUser, confirmMail: thisUser.mail };
+    }
   }
 
-  const buttonHasBeenClicked = useNavigateAfterAction(loading, '/admins/users')
+  const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/users`);
 
-  const [user, bindField, areFieldsEmpty] = useForm(
-    userId ? thisUser : initialState
-  )
+  const [user, bindField, areFieldsEmpty] = useForm(userId ? thisUser : initialState);
 
-  const [selectedReportsGroups, toggleSelectedReportsGroup] = useSelectionList(
-    userId ? thisUser.reportGroups : []
-  )
-
-  const [active, handleSwitchChange] = useToggle(true)
+  const [active, handleSwitchChange] = useToggle(userId ? thisUser?.active : true);
 
   const handleManageUser = () => {
-    const userData = { ...user, active, reportGroups: selectedReportsGroups }
+    let userData = { ...user, active };
 
-    dispatch(userId ? updateUser(userData) : createUser(userData))
+    // Si es admin, inyectar el accountId automáticamente
+    if (isAdmin && accountId) {
+      userData = { ...userData, accountId: accountId };
+    }
 
-    buttonHasBeenClicked()
-  }
+    dispatch(userId ? updateUser(userData) : createUser(userData));
 
-  if (reportsGroupLoading || loading)
+    buttonHasBeenClicked();
+  };
+
+  useEffect(() => {
+    if (isSuperuser) {
+      dispatch(getAccountsLists());
+      dispatch(getRoleLists());
+    }
+  }, [isSuperuser, getRoleLists, getAccountsLists]);
+
+  if (loading && userId && !thisUser) {
     return (
-      <Paper className='container'>
+      <Paper className="container">
         <CircularLoading />
       </Paper>
-    )
+    );
+  }
 
-  if (!reportsGroupLoading && reportsGroups.length === 0)
+  if (userId && !thisUser && !loading) {
     return (
-      <Paper className='container'>
-        <Typography variant='h6' align='center'>
-          Antes de crear un usuario, debe haber al menos un grupo de reportes
+      <Paper className="container">
+        <Typography variant="h6" align="center" color="error">
+          Usuario no encontrado
         </Typography>
-
-        <CreateReportGroupButton justifyContent='center' />
+        <Grid container justifyContent="center" mt={3}>
+          <Button onClick={() => navigate(`/${prefixRoute}/users`)}>Volver a la lista</Button>
+        </Grid>
       </Paper>
-    )
+    );
+  }
+
+  // Si es admin, verificar que solo edite usuarios de su propia cuenta
+  if (isAdmin && userId && thisUser && thisUser.accountsId !== accountId) {
+    return (
+      <Paper className="container">
+        <Typography variant="h6" align="center" color="error">
+          No tienes permisos para editar este usuario
+        </Typography>
+        <Grid container justifyContent="center" mt={3}>
+          <Button onClick={() => navigate(`/${prefixRoute}/users`)}>Volver a la lista</Button>
+        </Grid>
+      </Paper>
+    );
+  }
 
   return (
-    <Paper className='container'>
+    <Paper className="container">
       <ManageUserForm
         userId={userId}
         bindField={bindField}
         active={active}
         handleSwitchChange={handleSwitchChange}
+        isSuperuser={isSuperuser}
+        accounts={accountsList}
+        roles={rolesList}
       />
 
-      <ManageUserReportGroups
-        selectedReportsGroups={selectedReportsGroups}
-        reportsGroups={reportsGroups}
-        toggleSelectedReportsGroup={toggleSelectedReportsGroup}
-      />
-
-      <Grid mt={3} container justifyContent='space-between'>
-        <Button onClick={() => navigate('/admins/users')}>Cancelar</Button>
-        <LoadingButton
-          onClick={handleManageUser}
-          variant='contained'
-          loading={loading}
-          disabled={areFieldsEmpty || selectedReportsGroups.length === 0}
-        >
-          {userId ? 'Guardar cambios' : 'Crear usuario'}
+      <Grid mt={3} container justifyContent="space-between">
+        <Button onClick={() => navigate(`/${prefixRoute}/users`)}>Cancelar</Button>
+        <LoadingButton onClick={handleManageUser} variant="contained" loading={loading} disabled={areFieldsEmpty}>
+          {userId ? "Guardar cambios" : "Crear usuario"}
         </LoadingButton>
       </Grid>
     </Paper>
-  )
-}
+  );
+};
 
-export default ManageUser
+export default ManageUser;

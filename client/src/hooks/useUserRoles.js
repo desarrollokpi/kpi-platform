@@ -1,48 +1,59 @@
-import { useState } from 'react'
-import roles from '../constants/roles'
+import { useMemo, useCallback } from "react";
+import roles from "../constants/roles";
+import { isDev } from "@util";
 
-const testSuperuser = {
-  name: 'kpigestion',
-  password: '@268296',
-}
+// Dev-only credentials. They won't exist in prod bundles.
+const devCredentialsByRole = isDev()
+  ? {
+      [roles.ROOT]: { name: "root.admin", password: "RootAdmin#2025" },
+      [roles.ADMIN]: { name: "acme.admin", password: "TenantAdmin#2025" },
+      [roles.USER]: { name: "acme.user", password: "UserAccess#2025" },
+    }
+  : {};
 
-const testAdmin = {
-  name: 'rpdea',
-  password: '12345',
-}
-
-const testUser = {
-  name: 'ftrentacoste',
-  password: '12345',
-}
-
-const userRoles = [
+const USER_ROLES = [
   {
     role: roles.USER,
-    label: 'Usuarios',
-    devCredentials: testUser,
-    redirectTo: '/users/reports',
+    label: "Usuarios",
+    redirectTo: "/users/dashboards",
   },
   {
     role: roles.ADMIN,
-    label: 'Administradores',
-    devCredentials: testAdmin,
-    redirectTo: '/admins/reports-groups',
+    label: "Administradores",
+    redirectTo: "/admins/workspaces",
   },
   {
-    role: roles.SUPERUSER,
-    label: 'Superusuarios',
-    devCredentials: testSuperuser,
-    redirectTo: '/superusers/admins',
+    role: roles.ROOT,
+    label: "Superusuarios",
+    redirectTo: "/superusers/accounts",
   },
-]
+].map((r) => ({
+  ...r,
+  devCredentials: devCredentialsByRole[r.role],
+}));
 
 const useUserRoles = () => {
-  const [userRoleName, setUserRoleName] = useState(roles.ADMIN)
+  const userRoles = useMemo(() => USER_ROLES, []);
 
-  const userRole = userRoles.find(({ role }) => role === userRoleName)
+  const getRole = useCallback((roleName) => userRoles.find((r) => r.role === roleName), [userRoles]);
 
-  return { userRoleName, setUserRoleName, userRoles, userRole }
-}
+  const resolveUserRole = useCallback(
+    (userRolesFromApi = []) => {
+      const firstRoleName = userRolesFromApi?.[0];
+      return firstRoleName ? getRole(firstRoleName) : undefined;
+    },
+    [getRole]
+  );
 
-export default useUserRoles
+  const getDevCredentials = useCallback(
+    (roleName) => {
+      if (!isDev()) return undefined;
+      return getRole(roleName)?.devCredentials;
+    },
+    [getRole]
+  );
+
+  return { userRoles, getRole, resolveUserRole, getDevCredentials };
+};
+
+export default useUserRoles;

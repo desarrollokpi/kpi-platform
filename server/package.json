@@ -1,6 +1,7 @@
 {
   "name": "kpi-managers-backend",
   "version": "1.0.0",
+  "type": "commonjs",
   "description": "KPI Managers Backend",
   "main": "app.js",
   "scripts": {
@@ -14,7 +15,13 @@
     "new-controller": "node ./framework/newController",
     "new-routes": "node ./framework/newRoutes",
     "new-redux-files": "node ./framework/newReduxFiles",
-    "connect-redux": "node ./framework/connectRedux"
+    "connect-redux": "node ./framework/connectRedux",
+    "db:generate": "drizzle-kit --config=drizzle.config.js generate",
+    "db:migrate": "drizzle-kit --config=drizzle.config.js push",
+    "db:push": "drizzle-kit --config=drizzle.config.js push",
+    "seed:base": "node ./scripts/seed-base-data.js",
+    "seed:demo": "node ./scripts/seed-demo-data.js",
+    "cleanup:demo": "node ./scripts/cleanup-demo-data.js"
   },
   "author": "Tomás Guzmán <tomasg92@gmail.com>",
   "license": "ISC",
@@ -24,8 +31,10 @@
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.4",
     "cors": "^2.8.5",
+    "csv-stringify": "^6.6.0",
     "dayjs": "^1.10.7",
     "dotenv": "^8.2.0",
+    "drizzle-orm": "^0.44.7",
     "express": "^4.17.1",
     "express-jwt": "^5.3.1",
     "express-session": "^1.17.2",
@@ -42,10 +51,12 @@
     "mysql": "^2.18.1",
     "mysql2": "^2.3.3",
     "nodemon": "^2.0.2",
+    "pdfkit": "^0.17.2",
     "redis": "^4.0.1"
   },
   "devDependencies": {
-    "concurrently": "^5.1.0"
+    "concurrently": "^5.1.0",
+    "drizzle-kit": "^0.31.7"
   },
   "packageManager": "pnpm@10.22.0+sha512.bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c"
 }

@@ -1,22 +1,29 @@
-import { readProfile } from '../state/auth/authActions'
-import { useEffect } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { useLocation } from 'react-router-dom'
+import { useEffect, useMemo } from "react";
+import { useDispatch, useSelector, shallowEqual } from "react-redux";
+import { readProfile } from "../state/auth/authActions";
 
 const useAuth = () => {
-  const dispatch = useDispatch()
-  const location = useLocation()
+  const dispatch = useDispatch();
 
-  const { user, isAuthenticated } = useSelector(state => state.auth)
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth, shallowEqual);
 
-  const isAuth = user && isAuthenticated
+  const isAuth = useMemo(() => {
+    return Boolean(user && isAuthenticated);
+  }, [user, isAuthenticated]);
 
-  /* eslint-disable react-hooks/exhaustive-deps */
+  const roleName = useMemo(() => {
+    if (!user) return undefined;
+    if (Array.isArray(user.roles) && user.roles.length > 0) return user.roles[0];
+    return user.role;
+  }, [user]);
+
   useEffect(() => {
-    if (user) dispatch(readProfile(user.role))
-  }, [dispatch, location])
+    if (!user && !loading) {
+      dispatch(readProfile());
+    }
+  }, [dispatch, user, loading]);
 
-  return isAuth
-}
+  return { isAuth, loading, user };
+};
 
-export default useAuth
+export default useAuth;

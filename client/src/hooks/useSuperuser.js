@@ -1,13 +1,20 @@
-import { useSelector } from 'react-redux'
-import roles from '../constants/roles'
+import { useSelector, shallowEqual } from "react-redux";
+import { useMemo } from "react";
+import roles from "../constants/roles";
 
 const useSuperuser = () => {
-  const { user, isAuthenticated, loading } = useSelector(state => state.auth)
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth, shallowEqual);
 
-  const isSuperuser =
-    (user && isAuthenticated && user.role === roles.SUPERUSER) || loading
+  const isSuperuser = useMemo(() => {
+    if (!user || !isAuthenticated) return false;
 
-  return isSuperuser
-}
+    const hasRootRole = Array.isArray(user.roles) ? user.roles.includes(roles.ROOT) : user.role === roles.ROOT;
+    const hasNoAccount = !user.accountId;
 
-export default useSuperuser
+    return hasRootRole && hasNoAccount;
+  }, [user, isAuthenticated]);
+
+  return { isSuperuser, loading };
+};
+
+export default useSuperuser;

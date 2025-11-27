@@ -1,23 +1,20 @@
-import { readProfile } from '../state/auth/authActions'
-import { useEffect } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { useLocation } from 'react-router-dom'
-import roles from '../constants/roles'
+import { useSelector, shallowEqual } from "react-redux";
+import { useMemo } from "react";
+import roles from "../constants/roles";
 
 const useAdmin = () => {
-  const dispatch = useDispatch()
-  const location = useLocation()
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth, shallowEqual);
 
-  const { user, isAuthenticated, loading } = useSelector(state => state.auth)
+  const isAdmin = useMemo(() => {
+    if (!user || !isAuthenticated) return false;
 
-  const isAuth =
-    (user && isAuthenticated && user.role === roles.ADMIN) || loading
+    const hasAdminRole = Array.isArray(user.roles) ? user.roles.includes(roles.ADMIN) : user.role === roles.ADMIN;
+    const hasAccount = !!user.accountId; // true si tiene un valor "truthy"
 
-  // useEffect(() => {
-  //   if (user) dispatch(readProfile(user.role))
-  // }, [dispatch, location])
+    return hasAdminRole && hasAccount;
+  }, [user, isAuthenticated]);
 
-  return isAuth
-}
+  return { isAdmin, loading };
+};
 
-export default useAdmin
+export default useAdmin;

@@ -1,6 +1,8 @@
 services:
   client:
     platform: linux/x86_64
+    depends_on:
+      - server
     build:
       context: ./client
       dockerfile: Dockerfile.dev
@@ -23,7 +25,12 @@ services:
   server:
     platform: linux/x86_64
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     build:
       context: ./server
       dockerfile: Dockerfile.dev
@@ -53,6 +60,43 @@ services:
     volumes: 
       - redis:/data
 
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: reporteria
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  db-init:
+    platform: linux/x86_64
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: kpi-db-init
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - ./server/config/.env.dev
+    volumes:
+      - ./server/migrations:/app/migrations
+    environment:
+      SEED_ENV: /app/config/.env.dev
+    command: ["sh", "-c", "pnpm run db:generate && pnpm run db:migrate && pnpm run seed:base && pnpm run seed:demo"]
+    restart: "no"
+
 volumes:
   redis:
+    driver: local
+  mysql:
     driver: local

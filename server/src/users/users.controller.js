@@ -1,87 +1,233 @@
-const usersServices = require('./users.services')
+const usersServices = require("./users.services");
+const { ValidationError } = require("../common/exception");
 
-exports.createUserByAdmin = async (req, res) => {
+exports.createUser = async (req, res, next) => {
   try {
-    const user = req.body
+    const { username, name, mail, password, accountId, roleId } = req.body;
 
-    const { reportGroups } = req.body
+    // Validate input
+    if (!username || !mail || !password) {
+      throw new ValidationError("Todos los campos son requeridos: username, name, mail, password, role");
+    }
 
-    await usersServices.createUserByAdmin(user, reportGroups, req.userId)
-
-    res.send({ message: 'Usuario creado exitosamente' })
-  } catch (error) {
-    return res.status(400).send(error.message)
-  }
-}
-
-exports.readProfile = async (req, res) => {
-  try {
-    const user = await usersServices.readProfile(req.userId)
-
-    user.adminId = undefined
-
-    res.send(user)
-  } catch (error) {
-    return res.status(400).send(error)
-  }
-}
-
-exports.readSubdomain = async (req, res) => {
-  // res.header("Access-Control-Allow-Headers", ["Content-Type","X-Requested-With","X-HTTP-Method-Override","Accept"]);
-  //   res.header("Access-Control-Allow-Credentials", true);
-  //   res.header("Access-Control-Allow-Methods", "GET,POST");
-  //   res.header("Cache-Control", "no-store,no-cache,must-revalidate");
-  //   res.header("Vary", "Origin");
-  try {
-    const users = await usersServices.readSubdomain(req.params.subdomain)
-
-    res.send(users)
-  } catch (error) {
-    return res.status(400).send(error)
-  }
-}
-
-exports.readUsersByAdminId = async (req, res) => {
-  try {
-    const users = await usersServices.readUsersByAdminId(req.userId)
-
-    res.send(users)
-  } catch (error) {
-    return res.status(400).send(error.stack)
-  }
-}
-
-exports.updateUserPasswordByUser = async (req, res) => {
-  try {
-    await usersServices.updateUserPasswordByUser(req.userId, req.body.password)
-
-    res.send({ message: 'Password actualizado con éxito' })
-  } catch (error) {
-    return res.status(400).send(error.stack)
-  }
-}
-
-exports.updateUserByAdmin = async (req, res) => {
-  try {
-    const { username, name, mail, active, reportGroups } = req.body
-
-    await usersServices.updateUserByAdmin(
-      req.userId,
-      req.params.userId,
+    const user = await usersServices.createUser({
       username,
       name,
       mail,
-      active,
-      reportGroups
-    )
+      password,
+      accountId,
+      roleId,
+    });
 
-    const user = await usersServices.readOneUserByAdmin(
-      parseInt(req.params.userId),
-      req.userId
-    )
-
-    res.send(user)
+    res.status(201).json({
+      message: "Usuario creado exitosamente",
+      user,
+    });
   } catch (error) {
-    return res.status(400).send(error.stack)
+    next(error);
   }
-}
+};
+
+exports.getUserById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await usersServices.getUserById(parseInt(id));
+
+    res.json({ user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getProfile = async (req, res, next) => {
+  try {
+    const userId = req.userId; // Set by authentication middleware
+
+    const user = await usersServices.getUserProfile(userId);
+
+    res.json({ user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAllUsers = async (req, res, next) => {
+  try {
+    const { active, accountsId, limit, offset } = req.query;
+
+    const options = {};
+    if (active !== undefined) options.active = active === "true";
+    if (accountsId !== undefined) options.accountsId = parseInt(accountsId);
+    if (limit !== undefined) options.limit = parseInt(limit);
+    if (offset !== undefined) options.offset = parseInt(offset);
+
+    const result = await usersServices.getAllUsers(options);
+
+    res.json({
+      users: result.users,
+      totalCount: result.totalCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getUsersByAccount = async (req, res, next) => {
+  try {
+    const { accountId } = req.params;
+    const userId = req.userId;
+
+    const users = await usersServices.getUsersByAccount(parseInt(accountId), userId);
+
+    res.json({ users, count: users.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { username, email, name } = req.body;
+
+    const user = await usersServices.updateUser(parseInt(id), {
+      username,
+      email,
+      name,
+    });
+
+    res.json({
+      message: "Usuario actualizado exitosamente",
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    // If admin is changing another user's password, they don't need current password
+    const userId = req.userId;
+    const isChangingOwnPassword = parseInt(id) === userId;
+
+    if (isChangingOwnPassword) {
+      if (!currentPassword || !newPassword) {
+        throw new ValidationError("Contraseña actual y nueva son requeridas");
+      }
+      await usersServices.changePassword(parseInt(id), currentPassword, newPassword);
+    } else {
+      // Admin resetting another user's password
+      if (!newPassword) {
+        throw new ValidationError("Nueva contraseña es requerida");
+      }
+      await usersServices.resetPassword(parseInt(id), newPassword);
+    }
+
+    res.json({
+      message: "Contraseña actualizada exitosamente",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.changeOwnPassword = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      throw new ValidationError("Contraseña actual y nueva son requeridas");
+    }
+
+    await usersServices.changePassword(userId, currentPassword, newPassword);
+
+    res.json({
+      message: "Contraseña actualizada exitosamente",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.assignRole = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { roleName } = req.body;
+
+    if (!roleName) {
+      throw new ValidationError("El nombre del rol es requerido");
+    }
+
+    await usersServices.assignRole(parseInt(id), roleName);
+
+    res.json({
+      message: `Rol "${roleName}" asignado exitosamente`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.removeRole = async (req, res, next) => {
+  try {
+    const { id, roleName } = req.params;
+
+    await usersServices.removeRole(parseInt(id), roleName);
+
+    res.json({
+      message: `Rol "${roleName}" removido exitosamente`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.activateUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await usersServices.activateUser(parseInt(id));
+
+    res.json({
+      message: "Usuario activado exitosamente",
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deactivateUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await usersServices.deactivateUser(parseInt(id));
+
+    res.json({
+      message: "Usuario desactivado exitosamente",
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    await usersServices.deleteUser(parseInt(id));
+
+    res.json({
+      message: "Usuario eliminado exitosamente",
+    });
+  } catch (error) {
+    next(error);
+  }
+};

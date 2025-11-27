@@ -1,13 +1,12 @@
-const useSubdomain = initialState => {
-  let subdomain = window.location.host
+const useSubdomain = () => {
+  const subdomain = window.location.host;
 
-  if (subdomain === 'localhost:3000') {
-    subdomain = 'testclientqa'
-  } else {
-    subdomain = subdomain.split('.')[0]
+  if (subdomain.includes("localhost:")) {
+    return null;
+    // return "testclientqa";
   }
 
-  return subdomain
-}
+  return subdomain.split(".")[0];
+};
 
-export default useSubdomain
+export default useSubdomain;

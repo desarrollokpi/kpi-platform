@@ -8,8 +8,6 @@ import {
 
 import axios from 'axios'
 
-import { config } from '../../util/state'
-
 export const handleError = (dispatch, error) => {
   dispatch({ type: ERROR, payload: error.response.data })
   setTimeout(() => {
@@ -17,28 +15,30 @@ export const handleError = (dispatch, error) => {
   }, 3000)
 }
 
-export const setLoading = () => dispatch => {
-  return dispatch({ type: LOADING })
-}
+const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value })
 
 export const readInvoicesByContract = contract => async dispatch => {
-  setLoading()(dispatch)
+  setLoading(dispatch, true)
 
   try {
     const res = await axios.get(`/invoices/${contract.id}`)
     dispatch({ type: READ_INVOICES_BY_CONTRACT, payload: res.data })
   } catch (error) {
     dispatch({ type: ERROR, payload: error.response.data.message })
+  } finally {
+    setLoading(dispatch, false)
   }
 }
 
 export const readInvoicesDetailByContract = contract => async dispatch => {
-  setLoading()(dispatch)
+  setLoading(dispatch, true)
 
   try {
     const res = await axios.get(`/invoices/details/${contract.id}`)
     dispatch({ type: READ_INVOICES_DETAIL_BY_CONTRACT, payload: res.data })
   } catch (error) {
     dispatch({ type: ERROR, payload: error.response.data.message })
+  } finally {
+    setLoading(dispatch, false)
   }
 }

@@ -1,154 +1,118 @@
-const sectionsServices = require('../sections/sections.services')
-const reportsRepository = require('./reports.repository')
-const workspaceService = require('../workspaces/workspaces.services')
-const reportsPowerBiRepository = require('./reports.powerbi.repository')
+const reportsRepository = require("./reports.repository");
+const workspacesRepository = require("../workspaces/workspaces.repository");
+const { ValidationError, NotFoundError, ConflictError } = require("../common/exception");
 
-function sectionsByReportsGroupHeader(sections, reportsGroupHeaderId) {
-  return sections
-    .filter(section => section.reportsGroupHeaderId === reportsGroupHeaderId)
-    .map(section => section.id)
-}
+exports.createReport = async (reportData) => {
+  const { workspacesId, name } = reportData;
 
-async function reconcileReports(
-  adminId,
-  workspaces,
-  powerBiReports,
-  databaseReports
-) {
-  const databaseReportsIds = databaseReports.map(report => report.reportId)
-  const powerBiReportsIds = powerBiReports.map(report => report.id)
-
-  const reportsAreEqual =
-    databaseReportsIds.every(databaseReportId =>
-      powerBiReportsIds.includes(databaseReportId)
-    ) && !databaseReportsIds.length === 0
-
-  if (!reportsAreEqual) {
-    powerBiReports.forEach(async powerBiReport => {
-      if (!databaseReportsIds.includes(powerBiReport.id))
-        await reportsRepository.createReportByAdmin(
-          adminId,
-          powerBiReport.id,
-          powerBiReport.workspaceId
-        )
-    })
-
-    databaseReports.forEach(async databaseReport => {
-      if (!powerBiReportsIds.includes(databaseReport.reportId))
-        await reportsRepository.deleteReportByAdmin(
-          databaseReport.reportId,
-          databaseReport.workspaceId,
-          adminId
-        )
-    })
+  if (!workspacesId || !name) {
+    throw new ValidationError("El workspacesId y el nombre son requeridos");
   }
-}
 
-async function linkSectionsToReportGroup(reportGroupId, sections) {
-  await reportsRepository.deleteSectionsInReportGroup(reportGroupId)
-  await reportsRepository.createSectionsInReportGroup(reportGroupId, sections)
-}
+  // Verify workspace exists
+  const workspace = await workspacesRepository.findById(workspacesId);
+  if (!workspace) {
+    throw new NotFoundError("Workspace no encontrado");
+  }
 
-exports.createReportGroupByAdmin = async (
-  adminId,
-  code,
-  name,
-  active,
-  sections
-) => {
-  const reportGroupId = await reportsRepository.createReportGroupByAdmin(
-    adminId,
-    code,
+  // Check if report with same name already exists in this workspace
+  const reports = await reportsRepository.findByWorkspace(workspacesId);
+  const existingReport = reports.find((r) => r.name === name);
+
+  if (existingReport) {
+    throw new ConflictError(`Ya existe un reporte con el nombre "${name}" en este workspace`);
+  }
+
+  const result = await reportsRepository.createReport({
+    workspacesId,
     name,
-    active
-  )
+    active: reportData.active !== undefined ? reportData.active : true,
+  });
 
-  await linkSectionsToReportGroup(reportGroupId, sections)
-}
+  return await reportsRepository.findById(result.insertId);
+};
 
-exports.readReportGroupsByAdmin = async adminId => {
-  const reportGroups = await reportsRepository.readReportGroupsByAdmin(adminId)
+exports.getReportById = async (id) => {
+  const report = await reportsRepository.findById(id);
 
-  const reportGroupsWithSections = Promise.all(
-    reportGroups.map(async reportGroup => ({
-      ...reportGroup,
-      sections: await sectionsServices.readSectionsByReportGroup(
-        reportGroup.id
-      ),
-    }))
-  )
+  if (!report) {
+    throw new NotFoundError("Reporte no encontrado");
+  }
 
-  return reportGroupsWithSections
-}
+  return report;
+};
 
-exports.readReportsByAdmin = async adminId => {
-  const workspaces = await workspaceService.readWorkspacesByAdmin(adminId)
-  const powerBiReports =
-    await reportsPowerBiRepository.readReportsByManyWorkspaces(workspaces)
-  const databaseReports = await reportsRepository.readReportsByAdmin(adminId)
+exports.getAllReports = async (options = {}) => {
+  return await reportsRepository.findAll(options);
+};
 
-  await reconcileReports(adminId, workspaces, powerBiReports, databaseReports)
+exports.getReportsForSelect = async () => {
+  return await reportsRepository.getForSelect();
+};
 
-  const reports = databaseReports.map(databaseReport => ({
-    ...databaseReport,
-    ...powerBiReports.find(
-      powerBiReport => powerBiReport.id === databaseReport.reportId
-    ),
-    reportId: undefined,
-  }))
+exports.getReportCount = async (activeOnly = false) => {
+  return await reportsRepository.count(activeOnly);
+};
 
-  return reports
-}
+exports.updateReport = async (id, updateData) => {
+  const report = await reportsRepository.findById(id);
 
-exports.readReportsByUser = async (userId, adminId) => {
-  const adminReports = await exports.readReportsByAdmin(adminId)
-  const databaseUserReports = await reportsRepository.readReportsByUser(userId)
+  if (!report) {
+    throw new NotFoundError("Reporte no encontrado");
+  }
 
-  const reports = databaseUserReports.map(databaseUserReport => ({
-    ...databaseUserReport,
-    ...adminReports.find(report => report.id === databaseUserReport.reportId),
-  }))
+  // If updating workspace, verify it exists
+  if (updateData.workspacesId && updateData.workspacesId !== report.workspacesId) {
+    const workspace = await workspacesRepository.findById(updateData.workspacesId);
+    if (!workspace) {
+      throw new NotFoundError("Workspace no encontrado");
+    }
+  }
 
-  return reports
-}
+  // If updating name, check for duplicates in the workspace
+  if (updateData.name && updateData.name !== report.name) {
+    const targetWorkspaceId = updateData.workspacesId || report.workspacesId;
+    const reports = await reportsRepository.findByWorkspace(targetWorkspaceId);
+    const existingReport = reports.find((r) => r.name === updateData.name && r.id !== id);
 
-exports.readReportsByWorkspace = async workspaceId => {
-  return await reportsPowerBiRepository.readReportsByWorkspace(workspaceId)
-}
+    if (existingReport) {
+      throw new ConflictError(`Ya existe un reporte con el nombre "${updateData.name}" en este workspace`);
+    }
+  }
 
-exports.readUsersReportsByAdmin = async adminId => {
-  return await reportsRepository.readUsersReportsByAdmin(adminId)
-}
+  await reportsRepository.updateReport(id, updateData);
 
-exports.updateReportGroupByAdmin = async (
-  adminId,
-  reportGroupId,
-  code,
-  name,
-  active,
-  sections
-) => {
-  await reportsRepository.updateReportGroupByAdmin(
-    adminId,
-    reportGroupId,
-    code,
-    name,
-    active
-  )
+  return await reportsRepository.findById(id);
+};
 
-  await linkSectionsToReportGroup(reportGroupId, sections)
-}
+exports.deleteReport = async (id) => {
+  const report = await reportsRepository.findById(id);
 
-exports.updateReportActiveStateByAdmin = async (
-  adminId,
-  reportId,
-  active,
-  workspaceId
-) => {
-  await reportsRepository.updateReportActiveStateByAdmin(
-    adminId,
-    reportId,
-    active,
-    workspaceId
-  )
-}
+  if (!report) {
+    throw new NotFoundError("Reporte no encontrado");
+  }
+
+  await reportsRepository.softDelete(id);
+};
+
+exports.activateReport = async (id) => {
+  const report = await reportsRepository.findById(id);
+
+  if (!report) {
+    throw new NotFoundError("Reporte no encontrado");
+  }
+
+  await reportsRepository.activate(id);
+
+  return await reportsRepository.findById(id);
+};
+
+exports.getReportsByWorkspace = async (workspaceId) => {
+  const workspace = await workspacesRepository.findById(workspaceId);
+
+  if (!workspace) {
+    throw new NotFoundError("Workspace no encontrado");
+  }
+
+  return await reportsRepository.findByWorkspace(workspaceId);
+};

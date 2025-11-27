@@ -1,7 +1,6 @@
 const express = require("express");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
-const connection = require("./database");
 const monitor = require("./logger");
 const cors = require("./cors");
 
@@ -22,26 +21,14 @@ app.use(monitor);
 app.use(cors);
 app.use(cookieParser());
 
-// Routes Middleware
-routes = [
-  "admins",
-  "contracts",
-  "currencies",
-  "identificationDocuments",
-  "invoices",
-  "locations",
-  "powerbi",
-  "reports",
-  "sections",
-  "superset",
-  "superusers",
-  "termsAndConditions",
-  "users",
-  "usersGroups",
-  "workspaces",
-];
+const routes = ["auth", "accounts", "users", "roles", "instances", "workspaces", "reports", "dashboards"];
 
 routes.forEach((route) => useRoute(route));
+
+// Error handling middleware (must be after all routes)
+const { notFoundHandler, errorHandler } = require("./src/middleware/errorHandler");
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // Listen
 const PORT = process.env.PORT || 5050;
@@ -49,13 +36,3 @@ const PORT = process.env.PORT || 5050;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-function keepMySQLAlive() {
-  connection.query("select 1", [], (error, _) => {
-    if (error) throw error;
-  });
-}
-
-const ONE_SECOND = 1000;
-
-setInterval(keepMySQLAlive, ONE_SECOND * 10);

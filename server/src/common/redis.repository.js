@@ -1,38 +1,38 @@
-const redisClient = require('../../redis')
+const redisClient = require("../../redis");
 
-const ONE_MINUTE = 60
-const SESSION_DURATION = ONE_MINUTE * 15
+const ONE_MINUTE = 60;
+const SESSION_DURATION = ONE_MINUTE * 15;
 
 class RedisRepository {
   constructor(entity) {
-    this.entity = entity
+    this.entity = entity;
   }
 
-  entityKey(entityId) {
-    return `${this.entity}-${entityId}`
-  }
+  entityKey = (entityId) => {
+    return `${this.entity}-${entityId}`;
+  };
 
-  async setExpirationById(entityId) {
-    await redisClient.expire(this.entityKey(entityId), SESSION_DURATION)
-  }
+  setExpirationById = async (entityId) => {
+    await redisClient.expire(this.entityKey(entityId), SESSION_DURATION);
+  };
 
-  async addById(entityId) {
-    await redisClient.set(this.entityKey(entityId), entityId.toString())
-    await this.setExpirationById(entityId)
-  }
+  addById = async (entityId) => {
+    await redisClient.set(this.entityKey(entityId), entityId.toString());
+    await this.setExpirationById(entityId);
+  };
 
-  async removeById(entityId) {
-    await redisClient.del(this.entityKey(entityId))
-  }
+  removeById = async (entityId) => {
+    await redisClient.del(this.entityKey(entityId));
+  };
 
-  async getById(entityId) {
-    const entityIdString = await redisClient.get(this.entityKey(entityId))
-    return parseInt(entityIdString)
-  }
+  getById = async (entityId) => {
+    const entityIdString = await redisClient.get(this.entityKey(entityId));
+    return parseInt(entityIdString);
+  };
 
-  async getTimeToLiveById(entityId) {
-    return await redisClient.ttl(this.entityKey(entityId))
-  }
+  getTimeToLiveById = async (entityId) => {
+    return await redisClient.ttl(this.entityKey(entityId));
+  };
 }
 
-module.exports = RedisRepository
+module.exports = RedisRepository;

@@ -1,36 +1,41 @@
-import React from 'react'
-import Users from '../components/users/Users'
-import { readUsers } from '../state/users/usersActions'
-import {
-  readReportGroupsByAdmin,
-  // readUsersReportsByAdmin,
-} from '../state/reports/reportsActions'
-import useRead from './../hooks/useRead'
-import { useNavigate } from 'react-router-dom'
+import React from "react";
+import UsersList from "../components/users/UsersList";
+import { useNavigate } from "react-router-dom";
 
-import Paper from '@mui/material/Paper'
-import AddIcon from '@mui/icons-material/Add'
-import PositionedButton from './../components/layout/PositionedButton'
+import Paper from "@mui/material/Paper";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import AddIcon from "@mui/icons-material/Add";
+import PositionedButton from "../components/layout/PositionedButton";
+import useSuperuser from "../hooks/useSuperuser";
 
 const UsersPage = () => {
-  useRead(readUsers, readReportGroupsByAdmin)
+  const { isSuperuser } = useSuperuser();
+  const navigate = useNavigate();
 
-  const navigate = useNavigate()
+  const handleCreate = () => {
+    const prefix = isSuperuser ? "superusers" : "admins";
+    navigate(`/${prefix}/users/create`);
+  };
 
   return (
-    <Paper className='container'>
-      <Users />
-      
-      <PositionedButton
-        onClick={() => navigate('/admins/users/create')}
-        startIcon={<AddIcon />}
-        variant='contained'
-        justifyContent='flex-end'
-      >
+    <Paper className="container">
+      <Box mb={3}>
+        <Typography variant="h5" component="h1" gutterBottom>
+          Gestión de Usuarios
+        </Typography>
+        <Typography variant="body2" color="textSecondary">
+          Administra los usuarios de tu cuenta (tenant)
+        </Typography>
+      </Box>
+
+      <UsersList />
+
+      <PositionedButton onClick={() => handleCreate()} startIcon={<AddIcon />} variant="contained" justifyContent="flex-end">
         Agregar nuevo usuario
       </PositionedButton>
     </Paper>
-  )
-}
+  );
+};
 
-export default UsersPage
+export default UsersPage;

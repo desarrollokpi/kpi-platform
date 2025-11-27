@@ -1,9 +1,9 @@
-const jwt = require('jsonwebtoken')
+const jwt = require("jsonwebtoken");
 
-function signToken(payload) {
+const signToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: '1h',
-  })
-}
+    expiresIn: "1h",
+  });
+};
 
-module.exports = signToken
+module.exports = signToken;

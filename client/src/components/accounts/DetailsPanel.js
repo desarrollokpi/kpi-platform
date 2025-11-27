@@ -19,7 +19,7 @@ const DetailsPanel = () => {
   ]
 
   const handleChangePassword = () => {
-    navigate('/admins/change-password')
+    navigate('/admins/changePassword')
   }
 
   return (

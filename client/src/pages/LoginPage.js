@@ -1,108 +1,81 @@
-import React, { useEffect } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useCallback, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
-import { Grid, Paper, Tabs } from '@mui/material'
+import { Grid, Paper } from "@mui/material";
+import LoadingButton from "@mui/lab/LoadingButton";
 
-import Tab from '@mui/material/Tab'
+import AppBar from "@layout/AppBar";
+import Alerts from "@layout/Alerts";
+import Footer from "@components/layout/Footer";
+import FormField from "@layout/FormField";
 
-import AppBar from '@layout/AppBar'
-import Alerts from '@layout/Alerts'
+import { signIn } from "./../state/auth/authActions";
+import { isDev } from "@util";
+import roles from "../constants/roles";
 
-import { signIn, setLoading } from './../state/auth/authActions'
-import FormField from '@layout/FormField'
-import LoadingButton from '@mui/lab/LoadingButton'
-import Footer from '@components/layout/Footer'
-import { isDev } from '@util'
-
-import useForm from '@hooks/useForm'
-import useSubdomain from '../hooks/useSubdomain'
-import useUserRoles from '../hooks/useUserRoles'
-
-const initialCredentials = {
-  name: '',
-  password: '',
-}
+import useForm from "@hooks/useForm";
+import useSubdomain from "../hooks/useSubdomain";
+import useUserRoles from "../hooks/useUserRoles";
 
 const LoginPage = () => {
-  const dispatch = useDispatch()
-  const navigate = useNavigate()
-  const subdomain = useSubdomain()
-  const { user, isAuthenticated, loading } = useSelector(state => state.auth)
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const subdomain = useSubdomain();
 
-  const { userRoles, userRole, userRoleName, setUserRoleName } = useUserRoles()
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
+  const { resolveUserRole, getDevCredentials } = useUserRoles();
 
-  const [credentials, bindField, areFieldsEmpty, setCredentials] = useForm(
-    isDev() ? userRole.devCredentials : initialCredentials
-  )
+  const initialCredentials = useMemo(() => {
+    if (!isDev()) return { identifier: "", password: "" };
+
+    const creds = getDevCredentials(roles.ROOT);
+    return creds ? { identifier: creds.name, password: creds.password } : { identifier: "", password: "" };
+  }, [getDevCredentials]);
+
+  const [credentials, bindField, areFieldsEmpty] = useForm(initialCredentials);
 
   useEffect(() => {
-    dispatch(setLoading(false))
-  }, [dispatch])
+    if (!isAuthenticated || loading || !user) return;
 
-  useEffect(() => {
-    if (isAuthenticated && user && !loading) {
-      navigate(userRole.redirectTo)
+    const role = resolveUserRole(user.roles);
+    if (role?.redirectTo) {
+      navigate(role.redirectTo, { replace: true });
     }
-  }, [isAuthenticated, navigate, loading, user, userRole])
+  }, [isAuthenticated, loading, user, resolveUserRole, navigate]);
 
-  useEffect(() => {
-    if (isDev()) setCredentials(userRole.devCredentials)
-  }, [userRole, setCredentials])
+  const handleLogin = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (loading) return;
 
-  const handleLogin = e => {
-    dispatch(signIn(userRole.role, { ...credentials, subdomain }))
-  }
-
-  const handleTabChange = role => e => {
-    setUserRoleName(role)
-  }
+      dispatch(signIn({ ...credentials, subdomain }));
+    },
+    [dispatch, credentials, subdomain, loading]
+  );
 
   return (
     <>
       <AppBar />
       <Alerts />
-      <Grid justifyContent='center' alignItems='center' container mt={4}>
+
+      <Grid justifyContent="center" alignItems="center" container mt={4}>
         <Grid item xs={12} md={5} lg={4} p={2}>
-          <Tabs
-            value={userRoleName}
-            TabIndicatorProps={{ style: { backgroundColor: '#fff' } }}
-          >
-            {userRoles.map(role => (
-              <Tab
-                key={role.role}
-                className='login'
-                onClick={handleTabChange(role.role)}
-                value={role.role}
-                label={role.label}
-              />
-            ))}
-          </Tabs>
-
-          <Paper className='login'>
-            <Grid container alignItems='center' component='form'>
-              <FormField label='Usuario '>
-                <FormField.TextField {...bindField('name')} />
+          <Paper className="login">
+            <Grid container alignItems="center" component="form" onSubmit={handleLogin}>
+              <FormField label="Usuario">
+                <FormField.TextField {...bindField("identifier")} />
               </FormField>
 
-              <FormField label='Contraseña'>
-                <FormField.TextField
-                  type='password'
-                  autoComplete='on'
-                  {...bindField('password')}
-                />
+              <FormField label="Contraseña">
+                <FormField.TextField type="password" autoComplete="current-password" {...bindField("password")} />
               </FormField>
-            </Grid>
 
-            <Grid mt={4} justifyContent='center' container>
-              <LoadingButton
-                variant='contained'
-                disabled={areFieldsEmpty}
-                onClick={handleLogin}
-                loading={loading}
-              >
-                Ingresar
-              </LoadingButton>
+              <Grid mt={4} justifyContent="center" container>
+                <LoadingButton type="submit" variant="contained" disabled={areFieldsEmpty || loading} loading={loading}>
+                  Ingresar
+                </LoadingButton>
+              </Grid>
             </Grid>
           </Paper>
         </Grid>
@@ -110,7 +83,7 @@ const LoginPage = () => {
 
       <Footer />
     </>
-  )
-}
+  );
+};
 
-export default LoginPage
+export default LoginPage;

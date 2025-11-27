@@ -1,25 +1,23 @@
-const jwt = require('jsonwebtoken')
-const superusersAuthServices = require('../superusers/superusers.auth.services')
-const roles = require('../constants/roles')
+const jwt = require("jsonwebtoken");
+const superusersAuthServices = require("../superusers/superusers.auth.services");
+const roles = require("../constants/roles");
 
 async function isSuperuser(req, res, next) {
-  const token = req.cookies.t
+  const token = req.cookies.t;
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const isSuperuser = decoded.role === roles.SUPERUSER
+    const isSuperuser = decoded.role === roles.SUPERUSER;
 
     if (!isSuperuser) {
-      return res.status(401).json({ message: 'No autorizado' })
+      return res.status(401).json({ message: "No autorizado" });
     }
   } catch (error) {
-    return res
-      .status(401)
-      .json({ message: 'No autorizado', error: error.message })
+    return res.status(401).json({ message: "No autorizado", error: error.message });
   }
 
-  next()
+  next();
 }
 
-module.exports = isSuperuser
+module.exports = isSuperuser;

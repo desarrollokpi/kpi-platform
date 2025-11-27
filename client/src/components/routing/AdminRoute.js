@@ -1,47 +1,34 @@
-import React, { useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { Navigate } from 'react-router-dom'
-import Layout from '../layout/Layout'
-import useAdmin from '../../hooks/useAdmin'
-import useTermsAndConditions from './../../hooks/useTermsAndConditions'
-import roles from './../../constants/roles'
-import { readProfile } from '../../state/auth/authActions'
-import LayoutLoading from '../layout/LayoutLoading'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { Navigate } from "react-router-dom";
+
+import Layout from "../layout/Layout";
+import LayoutLoading from "../layout/LayoutLoading";
+
+import useAdmin from "../../hooks/useAdmin";
+import { readProfile } from "../../state/auth/authActions";
 
 const AdminRoute = ({ children }) => {
-  const dispatch = useDispatch()
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const dispatch = useDispatch();
 
-  const isAdmin = useAdmin()
-  const userAcceptedTermsAndConditions = useTermsAndConditions()
-
-  const { loading: authLoading, user } = useSelector(state => state.auth)
-  const { loading: termsAndConditionsLoading } = useSelector(
-    state => state.auth
-  )
+  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    if (!isAdmin) navigate('/login')
-  }, [isAdmin])
+    if (!user) {
+      dispatch(readProfile());
+    }
+  }, [dispatch, user]);
 
-  useEffect(() => {
-    dispatch(readProfile(roles.ADMIN))
-  }, [pathname])
+  if (adminLoading && !user) {
+    return <LayoutLoading />;
+  }
 
-  if ((authLoading || termsAndConditionsLoading) && !user)
-    return <LayoutLoading />
+  if (!isAdmin) {
+    return <Navigate to="/login" replace />;
+  }
 
-  return isAdmin ? (
-    !userAcceptedTermsAndConditions ? (
-      <Navigate to='/termsAndConditions' />
-    ) : (
-      <Layout>{children}</Layout>
-    )
-  ) : (
-    <Navigate to='/login' />
-  )
-}
+  return <Layout>{children}</Layout>;
+};
 
-export default AdminRoute
+export default AdminRoute;

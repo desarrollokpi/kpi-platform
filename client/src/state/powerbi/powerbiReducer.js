@@ -53,7 +53,7 @@ const powerbiReducer = (state = initialState, action) => {
       return { ...state, message: null }
 
     case LOADING:
-      return { ...state, loading: true }
+      return { ...state, loading: action.payload }
 
     case ERROR:
       return { ...state, loading: false, message: action.payload }
