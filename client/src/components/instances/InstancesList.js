@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
-import { Switch, Typography, Stack, Box } from "@mui/material";
+import { Switch, Typography, Stack, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import StorageIcon from "@mui/icons-material/Storage";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
-import { getAllInstances, activateInstance, deactivateInstance } from "../../state/instances/instancesActions";
+import { getAllInstances, activateInstance, deactivateInstance, deleteInstance } from "../../state/instances/instancesActions";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const InstancesList = () => {
@@ -17,6 +18,7 @@ const InstancesList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { instances, loading, totalCount } = useSelector(({ instances }) => instances, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
@@ -48,6 +50,17 @@ const InstancesList = () => {
       ),
       color: "success",
       icon: <EditIcon />,
+    },
+    {
+      tooltip: "Eliminar",
+      onClick: useCallback(
+        (instance) => {
+          setDeleteTarget(instance);
+        },
+        []
+      ),
+      color: "error",
+      icon: <DeleteIcon />,
     },
   ];
 
@@ -122,6 +135,30 @@ const InstancesList = () => {
         />
         <Typography>Solo activas</Typography>
       </Stack>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>Eliminar instancia</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            ¿Seguro que deseas eliminar la instancia "{deleteTarget?.name}"?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              if (deleteTarget) {
+                dispatch(deleteInstance(deleteTarget.id));
+              }
+              setDeleteTarget(null);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

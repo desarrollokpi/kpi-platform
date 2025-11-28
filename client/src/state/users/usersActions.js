@@ -1,4 +1,4 @@
-import { ERROR, LOADING, CLEAR_MESSAGE, CREATE, READ_ALL, UPDATE, UPDATE_PASSWORD, GET_ROLES_LIST, GET_ACCOUNTS_LIST } from "./usersTypes";
+import { ERROR, LOADING, CLEAR_MESSAGE, CREATE, READ_ALL, UPDATE, DELETE, UPDATE_PASSWORD, GET_ROLES_LIST, GET_ACCOUNTS_LIST } from "./usersTypes";
 
 import axios from "axios";
 
@@ -100,6 +100,18 @@ export const deactivateUser = (userId) => async (dispatch) => {
   try {
     const res = await axios.post(`/users/${userId}/deactivate`);
     dispatch({ type: UPDATE, payload: res.data.user });
+  } catch (error) {
+    handleError(dispatch, error);
+  } finally {
+    setLoading(dispatch, false);
+  }
+};
+
+export const deleteUser = (userId) => async (dispatch) => {
+  setLoading(dispatch, true);
+  try {
+    await axios.delete(`/users/${userId}`);
+    dispatch({ type: DELETE, payload: { id: userId } });
   } catch (error) {
     handleError(dispatch, error);
   } finally {

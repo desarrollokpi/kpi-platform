@@ -31,7 +31,7 @@ const DashboardsPage = () => {
 
       <DashboardsList />
 
-      {isSuperuser && isAdmin && (
+      {(isSuperuser || isAdmin) && (
         <PositionedButton onClick={handleCreate} startIcon={<AddIcon />} variant="contained" justifyContent="flex-end">
           Vincular dashboards
         </PositionedButton>

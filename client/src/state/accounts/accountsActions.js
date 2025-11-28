@@ -143,3 +143,21 @@ export const deActivateAccount = (accountId) => async (dispatch) => {
     setLoading(dispatch, false);
   }
 };
+
+export const deleteAccount = (accountId) => async (dispatch) => {
+  setLoading(dispatch, true);
+  try {
+    const { data } = await axios.delete(`/accounts/${accountId}`);
+    dispatch({
+      type: UPDATE_ACCOUNT,
+      payload: { id: accountId, deleted: true, message: data.message },
+    });
+  } catch (error) {
+    dispatch({
+      type: ERROR,
+      payload: extractErrorMessage(error),
+    });
+  } finally {
+    setLoading(dispatch, false);
+  }
+};

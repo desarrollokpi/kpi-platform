@@ -60,10 +60,13 @@ const adminReducer = (state = initialState, action) => {
     case UPDATE_ACCOUNT:
       return {
         ...state,
-        accounts: state.accounts.map((acc) => (acc.id === action.payload.id ? action.payload : acc)),
-        account: action.payload,
+        accounts:
+          action.payload && action.payload.deleted
+            ? state.accounts.filter((acc) => acc.id !== action.payload.id)
+            : state.accounts.map((acc) => (acc.id === action.payload.id ? action.payload : acc)),
+        account: action.payload && action.payload.deleted ? null : action.payload,
         loading: false,
-        message: "Cuenta actualizada exitosamente",
+        message: action.payload && action.payload.deleted ? "Cuenta eliminada exitosamente" : "Cuenta actualizada exitosamente",
       };
 
     default:

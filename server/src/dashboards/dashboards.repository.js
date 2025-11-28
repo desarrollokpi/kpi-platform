@@ -1,5 +1,5 @@
 const { db } = require("../../database");
-const { eq, and, isNull, sql } = require("drizzle-orm");
+const { eq, and, isNull, sql, desc } = require("drizzle-orm");
 const { dashboards, usersDashboards, reports, workspaces, instances, users } = require("../db/schema");
 
 exports.createDashboard = async (dashboardData) => {
@@ -48,7 +48,8 @@ exports.findAll = async (options = {}) => {
   let query = db
     .select()
     .from(dashboards)
-    .where(and(...conditions));
+    .where(and(...conditions))
+    .orderBy(desc(dashboards.createdAt));
 
   if (limit) {
     query = query.limit(limit);

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
-import { Switch, Typography, Stack, Box } from "@mui/material";
+import { Switch, Typography, Stack, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
 import PreviewIcon from "@mui/icons-material/Preview";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import DeleteIcon from "@mui/icons-material/Delete";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
-import { getAllDashboards, activateDashboard, deactivateDashboard } from "../../state/dashboards/dashboardsActions";
+import { getAllDashboards, activateDashboard, deactivateDashboard, deleteDashboard } from "../../state/dashboards/dashboardsActions";
 import { useNavigate, useLocation } from "react-router-dom";
 import useSuperuser from "../../hooks/useSuperuser";
 import useAdmin from "../../hooks/useAdmin";
@@ -22,6 +23,7 @@ const DashboardsList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const { dashboards, loading, totalCount } = useSelector(({ dashboards }) => dashboards, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
 
@@ -75,6 +77,14 @@ const DashboardsList = () => {
             color: "info",
             icon: <PreviewIcon />,
           },
+          {
+            tooltip: "Eliminar",
+            onClick: (dashboard) => {
+              setDeleteTarget(dashboard);
+            },
+            color: "error",
+            icon: <DeleteIcon />,
+          },
         ]
       : [
           {
@@ -109,9 +119,10 @@ const DashboardsList = () => {
       offset: page * rowsPerPage,
     };
 
-    // For tenant users we rely on backend permission checks (no explicit accountId filter).
-    // Superusers/Admins list dashboards for their tenant using accountId.
-    if (user?.accountId && (isSuperuser || isAdmin)) {
+    // For regular users we rely on backend permission checks (no explicit accountId filter).
+    // Tenant admins list dashboards for their tenant using accountId.
+    // Root admins (superusers) should see all dashboards across tenants, so we ignore accountId for them.
+    if (user?.accountId && isAdmin && !isSuperuser) {
       filters.accountId = user.accountId;
     }
 
@@ -152,7 +163,7 @@ const DashboardsList = () => {
         actions={actions}
       />
 
-      {isSuperuser && isAdmin && (
+      {(isSuperuser || isAdmin) && (
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 2 }}>
           <Typography>Todos</Typography>
           <Switch
@@ -165,6 +176,30 @@ const DashboardsList = () => {
           <Typography>Solo activos</Typography>
         </Stack>
       )}
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>Eliminar dashboard</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            ¿Seguro que deseas eliminar el dashboard "{deleteTarget?.name}"?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              if (deleteTarget) {
+                dispatch(deleteDashboard(deleteTarget.id));
+              }
+              setDeleteTarget(null);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

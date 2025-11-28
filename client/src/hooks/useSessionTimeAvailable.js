@@ -1,7 +1,8 @@
 import { useEffect, useRef, useMemo } from "react";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { toast } from "react-toastify";
-import { getTimeAvailable } from "../state/auth/authActions";
+import { Box, Typography, Button } from "@mui/material";
+import { getTimeAvailable, refreshSession } from "../state/auth/authActions";
 
 const ONE_MINUTE_SECONDS = 60;
 const WARNING_THRESHOLD_SECONDS = 5 * ONE_MINUTE_SECONDS;
@@ -49,18 +50,23 @@ const useSessionTimeAvailable = () => {
     if (justCrossedThreshold) {
       toast.warning(
         ({ closeToast }) => (
-          <div>
-            <p>La sesión se cerrará en 5 minutos por inactividad.</p>
-            <button
-              type="button"
+          <Box display="flex" flexDirection="column" gap={1}>
+            <Typography variant="body2">
+              La sesión se cerrará en 5 minutos por inactividad.
+            </Typography>
+            <Button
+              variant="contained"
+              size="small"
               onClick={() => {
-                dispatch(getTimeAvailable(roleName));
+                dispatch(refreshSession()).catch(() => {
+                  // If refresh fails, timeAvailable polling and auth error handling will take care of logout.
+                });
                 closeToast();
               }}
             >
               Mantener sesión activa
-            </button>
-          </div>
+            </Button>
+          </Box>
         ),
         {
           position: "top-center",

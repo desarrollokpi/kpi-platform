@@ -68,8 +68,10 @@ exports.getWorkspacesForSelect = async ({ accountId }) => {
   return await workspacesRepository.getForSelect({ accountId });
 };
 
-exports.getWorkspaceCount = async (activeOnly = false) => {
-  return await workspacesRepository.count(activeOnly);
+exports.getWorkspaceCount = async (options = {}) => {
+  const { active, accountId } = options;
+  const rows = await workspacesRepository.findAll({ active, accountId });
+  return rows.length;
 };
 
 exports.updateWorkspace = async (id, updateData) => {

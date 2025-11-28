@@ -37,7 +37,7 @@ const userReducer = (state = initialState, action) => {
       return {
         ...state,
         loading: false,
-        users: state.users.filter((user) => user._id !== action.payload._id),
+        users: state.users.filter((user) => user.id !== action.payload.id),
       };
 
     case CLEAR_MESSAGE:

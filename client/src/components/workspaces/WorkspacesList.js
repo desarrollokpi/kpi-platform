@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
-import { Switch, Typography, Stack, Box } from "@mui/material";
+import { Switch, Typography, Stack, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import FolderIcon from "@mui/icons-material/Folder";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
-import { getAllWorkspaces, activateWorkspace, deactivateWorkspace } from "../../state/workspaces/workspacesActions";
+import { getAllWorkspaces, activateWorkspace, deactivateWorkspace, deleteWorkspace } from "../../state/workspaces/workspacesActions";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const WorkspacesList = () => {
@@ -17,6 +18,7 @@ const WorkspacesList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { workspaces, loading, totalCount } = useSelector(({ workspaces }) => workspaces, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
@@ -46,6 +48,17 @@ const WorkspacesList = () => {
       ),
       color: "success",
       icon: <EditIcon />,
+    },
+    {
+      tooltip: "Eliminar",
+      onClick: useCallback(
+        (workspace) => {
+          setDeleteTarget(workspace);
+        },
+        []
+      ),
+      color: "error",
+      icon: <DeleteIcon />,
     },
   ];
 
@@ -120,6 +133,30 @@ const WorkspacesList = () => {
         />
         <Typography>Solo activos</Typography>
       </Stack>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>Eliminar workspace</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            ¿Seguro que deseas eliminar el workspace "{deleteTarget?.name}"?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              if (deleteTarget) {
+                dispatch(deleteWorkspace(deleteTarget.id));
+              }
+              setDeleteTarget(null);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

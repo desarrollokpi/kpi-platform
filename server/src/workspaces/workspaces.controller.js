@@ -71,11 +71,17 @@ exports.getAllWorkspaces = async (req, res, next) => {
     if (active !== undefined) options.active = active === "true";
     if (limit) options.limit = parseInt(limit);
     if (offset) options.offset = parseInt(offset);
-    if (accountId) options.accountId = accountId;
+    if (accountId) options.accountId = parseInt(accountId, 10);
 
     const workspaces = await workspacesServices.getAllWorkspaces(options);
 
-    const totalCount = limit || offset ? await workspacesServices.getWorkspaceCount(active === "true") : workspaces.length;
+    const totalCount =
+      limit || offset
+        ? await workspacesServices.getWorkspaceCount({
+            active: options.active,
+            accountId: options.accountId,
+          })
+        : workspaces.length;
 
     res.json({ workspaces, count: workspaces.length, totalCount });
   } catch (error) {

@@ -100,8 +100,11 @@ exports.getInstancesForSelect = async ({ accountId }) => {
   return await instancesRepository.getForSelect({ accountId });
 };
 
-exports.getIntanceCount = async (activeOnly = false) => {
-  return await instancesRepository.count(activeOnly);
+exports.getIntanceCount = async (options = {}) => {
+  // Use the same filtering logic as findAll, but without pagination, and count rows
+  const { active, accountId } = options;
+  const rows = await instancesRepository.findAll({ active, accountId });
+  return rows.length;
 };
 
 exports.updateIntance = async (id, updateData) => {

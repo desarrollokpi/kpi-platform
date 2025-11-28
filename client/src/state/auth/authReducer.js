@@ -40,6 +40,7 @@ const authReducer = (state = initialState, action) => {
         loading: false,
         isAuthenticated: shouldInvalidate ? false : state.isAuthenticated,
         user: shouldInvalidate ? null : state.user,
+        timeAvailable: shouldInvalidate ? null : state.timeAvailable,
         message: {
           text: action.payload?.message || action.payload || "Error",
           severity: "error",

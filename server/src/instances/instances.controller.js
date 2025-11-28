@@ -52,7 +52,13 @@ exports.getAllInstances = async (req, res, next) => {
 
     const instances = await instancesServices.getAllInstances(options);
 
-    const totalCount = limit || offset ? await instancesServices.getIntanceCount(active === "true") : instances.length;
+    const totalCount =
+      limit || offset
+        ? await instancesServices.getIntanceCount({
+            active: options.active,
+            accountId: options.accountId,
+          })
+        : instances.length;
 
     res.json({ instances, count: instances.length, totalCount });
   } catch (error) {

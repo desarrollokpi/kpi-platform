@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
-import { Switch, Typography, Stack, Box } from "@mui/material";
+import { Switch, Typography, Stack, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
 import KeyIcon from "@mui/icons-material/Key";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
+import DeleteIcon from "@mui/icons-material/Delete";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
-import { readUsers, activateUser, deactivateUser } from "../../state/users/usersActions";
+import { readUsers, activateUser, deactivateUser, deleteUser } from "../../state/users/usersActions";
 import { useNavigate, useLocation } from "react-router-dom";
 import useAdmin from "../../hooks/useAdmin";
 import useSuperuser from "../../hooks/useSuperuser";
@@ -23,6 +24,7 @@ const UsersList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { users, loading, totalCount } = useSelector(({ users }) => users, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
@@ -79,6 +81,17 @@ const UsersList = () => {
       ),
       color: "error",
       icon: <KeyIcon />,
+    },
+    {
+      tooltip: "Eliminar usuario",
+      onClick: useCallback(
+        (userItem) => {
+          setDeleteTarget(userItem);
+        },
+        []
+      ),
+      color: "error",
+      icon: <DeleteIcon />,
     },
   ];
 
@@ -157,6 +170,30 @@ const UsersList = () => {
         />
         <Typography>Solo activos</Typography>
       </Stack>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>Eliminar usuario</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            ¿Seguro que deseas eliminar al usuario "{deleteTarget?.username || deleteTarget?.name}"?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              if (deleteTarget) {
+                dispatch(deleteUser(deleteTarget.id));
+              }
+              setDeleteTarget(null);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

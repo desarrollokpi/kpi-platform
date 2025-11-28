@@ -80,21 +80,11 @@ const ChangeUserPassword = () => {
 
         <Grid item container justifyContent="center" s md={8} alignItems="center">
           <FormField label="Contraseña">
-            <FormField.TextField
-              error={error}
-              type="password"
-              helperText={error && "Ambos campos debes ser iguales"}
-              {...bindField("password")}
-            />
+            <FormField.TextField error={error} type="password" helperText={error && "Ambos campos debes ser iguales"} {...bindField("password")} />
           </FormField>
 
           <FormField label="Confirmar contraseña">
-            <FormField.TextField
-              error={error}
-              type="password"
-              helperText={error && "Ambos campos debes ser iguales"}
-              {...bindField("confirmPassword")}
-            />
+            <FormField.TextField error={error} type="password" helperText={error && "Ambos campos debes ser iguales"} {...bindField("confirmPassword")} />
           </FormField>
         </Grid>
       </Grid>

@@ -95,12 +95,6 @@ exports.createDashboard = async (dashboardData) => {
 
   const [supersetId, apacheDashboardId] = apacheId.split("-");
 
-  // Check if dashboard with same supersetId already exists
-  const existing = await dashboardsRepository.findBySupersetId(supersetId);
-  if (existing) {
-    throw new ValidationError(`Dashboard with supersetId ${supersetId} already exists`);
-  }
-
   const instance = await instanceRepository.findById(supersetId);
   if (!instance) {
     throw new ValidationError(`This instances doenst exists`);
@@ -303,7 +297,9 @@ exports.getDashboardsInstancesForSelect = async ({ reportId }) => {
 };
 
 exports.getDashboardCount = async (options = {}, userId) => {
-  const dashboards = await exports.getAllDashboards(options, userId);
+  // For total count we must ignore pagination params and keep only filters
+  const { limit, offset, ...filterOptions } = options;
+  const dashboards = await exports.getAllDashboards(filterOptions, userId);
   return dashboards.length;
 };
 

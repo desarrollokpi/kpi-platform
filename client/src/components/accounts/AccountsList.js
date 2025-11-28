@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
-import { Switch, Typography, Stack, Box } from "@mui/material";
+import { Switch, Typography, Stack, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import CircularLoading from "@layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
-import { getAccountsLists, activateAccount, deActivateAccount } from "../../state/accounts/accountsActions";
+import { getAccountsLists, activateAccount, deActivateAccount, deleteAccount } from "../../state/accounts/accountsActions";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const AccountsList = () => {
@@ -17,6 +17,7 @@ const AccountsList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { accounts, loading, totalCount } = useSelector((state) => state.accounts, shallowEqual);
 
@@ -47,6 +48,17 @@ const AccountsList = () => {
       ),
       color: "success",
       icon: <EditIcon />,
+    },
+    {
+      tooltip: "Eliminar",
+      onClick: useCallback(
+        (account) => {
+          setDeleteTarget(account);
+        },
+        []
+      ),
+      color: "error",
+      icon: <DeleteIcon />,
     },
   ];
 
@@ -120,6 +132,30 @@ const AccountsList = () => {
         />
         <Typography>Solo activos</Typography>
       </Stack>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>Eliminar cuenta</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            ¿Seguro que deseas eliminar la cuenta "{deleteTarget?.name}"?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              if (deleteTarget) {
+                dispatch(deleteAccount(deleteTarget.id));
+              }
+              setDeleteTarget(null);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
-import { Switch, Typography, Stack, Box } from "@mui/material";
+import { Switch, Typography, Stack, Box, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
-import { readReportsByAdmin, activateReport, deactivateReport } from "../../state/reports/reportsActions";
+import { readReportsByAdmin, activateReport, deactivateReport, deleteReport } from "../../state/reports/reportsActions";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const ReportsList = () => {
@@ -17,6 +18,7 @@ const ReportsList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { reports, loading, totalCount } = useSelector(({ reports }) => reports, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
@@ -46,6 +48,17 @@ const ReportsList = () => {
       ),
       color: "success",
       icon: <EditIcon />,
+    },
+    {
+      tooltip: "Eliminar",
+      onClick: useCallback(
+        (report) => {
+          setDeleteTarget(report);
+        },
+        []
+      ),
+      color: "error",
+      icon: <DeleteIcon />,
     },
   ];
 
@@ -120,6 +133,30 @@ const ReportsList = () => {
         />
         <Typography>Solo activos</Typography>
       </Stack>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>Eliminar reporte</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            ¿Seguro que deseas eliminar el reporte "{deleteTarget?.name}"?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              if (deleteTarget) {
+                dispatch(deleteReport(deleteTarget.id));
+              }
+              setDeleteTarget(null);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

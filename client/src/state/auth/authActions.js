@@ -56,6 +56,22 @@ export const signOut = () => async (dispatch) => {
   }
 };
 
+// Refresh current session TTL and update remaining time
+export const refreshSession = () => async (dispatch) => {
+  setLoading(dispatch, true);
+  try {
+    await axios.post(`/auth/refresh`, null, { withCredentials: true });
+    // After refreshing, read updated time left in session
+    await dispatch(getTimeAvailable());
+  } catch (error) {
+    // If refresh fails, invalidate the session so the user is forced to sign in again
+    dispatchError(dispatch, error, { invalidateSession: true });
+    throw error;
+  } finally {
+    setLoading(dispatch, false);
+  }
+};
+
 export const getTimeAvailable = () => async (dispatch) => {
   setLoading(dispatch, true);
   try {
