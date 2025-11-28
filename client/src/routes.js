@@ -136,21 +136,21 @@ export const rootAdminRoutes = {
 export const adminsRoutes = {
   // User Management (Tenant Admin manages users in their account)
   // Instances
-  instances: {
-    name: "Instancias",
-    path: "/instances",
-    element: InstancesPage,
-  },
-  createInstance: {
-    name: "Crear Instancia",
-    path: "/instances/create",
-    element: ManageInstancePage,
-  },
-  updateInstance: {
-    name: "Editar Instancia",
-    path: "/instances/update/:instanceId",
-    element: ManageInstancePage,
-  },
+  // instances: {
+  //   name: "Instancias",
+  //   path: "/instances",
+  //   element: InstancesPage,
+  // },
+  // createInstance: {
+  //   name: "Crear Instancia",
+  //   path: "/instances/create",
+  //   element: ManageInstancePage,
+  // },
+  // updateInstance: {
+  //   name: "Editar Instancia",
+  //   path: "/instances/update/:instanceId",
+  //   element: ManageInstancePage,
+  // },
   // Workspaces
   workspaces: {
     name: "Workspaces",
