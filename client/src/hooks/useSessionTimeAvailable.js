@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo } from "react";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { toast } from "react-toastify";
 import { Box, Typography, Button } from "@mui/material";
-import { getTimeAvailable, refreshSession } from "../state/auth/authActions";
+import { getTimeAvailable, refreshSession, signOut } from "../state/auth/authActions";
 
 const ONE_MINUTE_SECONDS = 60;
 const WARNING_THRESHOLD_SECONDS = 5 * ONE_MINUTE_SECONDS;
@@ -31,14 +31,29 @@ const useSessionTimeAvailable = () => {
   }, [dispatch, isAuthenticated, roleName]);
 
   const previousTimeRef = useRef(null);
+  const expiredHandledRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated || !roleName) {
       previousTimeRef.current = null;
+      expiredHandledRef.current = false;
       return;
     }
 
     if (timeAvailable === null || timeAvailable === undefined) {
+      previousTimeRef.current = timeAvailable;
+      return;
+    }
+
+    if (timeAvailable <= 0) {
+      if (!expiredHandledRef.current) {
+        expiredHandledRef.current = true;
+        toast.error("Tu sesión ha expirado. Por favor inicia sesión nuevamente.", {
+          position: "top-center",
+          autoClose: 6000,
+        });
+        dispatch(signOut());
+      }
       previousTimeRef.current = timeAvailable;
       return;
     }
