@@ -97,7 +97,7 @@ const reportsRelations = relations(reports, ({ one, many }) => ({
 // dashboards relations
 const dashboardsRelations = relations(dashboards, ({ one, many }) => ({
   report: one(reports, {
-    fields: [dashboards.reportsId],
+    fields: [dashboards.reportId],
     references: [reports.id],
   }),
   usersDashboards: many(usersDashboards),

@@ -44,13 +44,13 @@ const ManageWorkspace = () => {
     if (isSuperuser) {
       dispatch(getAccountsLists());
     }
-  }, [getAccountsLists]);
+  }, [dispatch, isSuperuser]);
 
   useEffect(() => {
     if (workspace?.accountId) {
-      dispatch(getInstancesLists(workspace?.accountId));
+      dispatch(getInstancesLists(workspace.accountId));
     }
-  }, [getInstancesLists, workspace]);
+  }, [dispatch, workspace?.accountId]);
 
   // Solo los superusers pueden gestionar workspaces
   if (!isSuperuser) {

@@ -28,7 +28,7 @@ const ChangeUserPasswordByUser = () => {
 
   React.useEffect(() => {
     if (error && fields.password === fields.confirmPassword) toggleError();
-  }, [error, fields.password, fields.confirmPassword]);
+  }, [error, fields.password, fields.confirmPassword, toggleError]);
 
   const handleChangeUserPassword = () => {
     if (fields.password !== fields.confirmPassword) {

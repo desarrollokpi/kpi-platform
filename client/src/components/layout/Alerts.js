@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import MuiAlert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -12,7 +12,7 @@ const TIMEOUT = 4500
 
 const Alerts = () => {
   const dispatch = useDispatch()
-  const { message, loading } = useSelector(state => state.auth)
+  const { message } = useSelector(state => state.auth)
 
   const [show, setShow] = useState(false)
 
@@ -24,7 +24,7 @@ const Alerts = () => {
 
       setTimeout(() => dispatch(clearMessage()), TIMEOUT)
     }
-  }, [message])
+  }, [message, show, dispatch])
 
   return (
     <>

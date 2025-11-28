@@ -47,10 +47,16 @@ const AssignDashboardsToUser = () => {
     useSelectionList(initialSelectedDashboards)
 
   useEffect(() => {
-    if (userDashboards.length > 0) {
-      setSelectedDashboards(userDashboards.map(d => d.id))
+    const newSelection = userDashboards.map(d => d.id)
+
+    const isSameSelection =
+      newSelection.length === selectedDashboards.length &&
+      newSelection.every((id, index) => id === selectedDashboards[index])
+
+    if (!isSameSelection) {
+      setSelectedDashboards(newSelection)
     }
-  }, [userDashboards, setSelectedDashboards])
+  }, [userDashboards, selectedDashboards, setSelectedDashboards])
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, '/admins/users')
 

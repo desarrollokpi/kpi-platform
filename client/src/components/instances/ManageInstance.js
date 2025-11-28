@@ -46,7 +46,7 @@ const ManageInstance = () => {
     if (isSuperuser) {
       dispatch(getAccountsLists());
     }
-  }, [getAccountsLists]);
+  }, [dispatch, isSuperuser]);
 
   // Solo los superusers pueden gestionar instances
   if (!isSuperuser) {

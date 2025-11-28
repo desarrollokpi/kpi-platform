@@ -86,7 +86,7 @@ exports.getAllWorkspaces = async (req, res, next) => {
 exports.updateWorkspace = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, uuid } = req.body;
+    const { name, accountId, instanceId } = req.body;
     const userId = req.userId;
 
     // Get requesting user to check tenant isolation
@@ -116,7 +116,8 @@ exports.updateWorkspace = async (req, res, next) => {
 
     const workspace = await workspacesServices.updateWorkspace(parseInt(id), {
       name,
-      uuid,
+      accountId,
+      instanceId,
     });
 
     res.json({

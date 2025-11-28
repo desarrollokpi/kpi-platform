@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "8d74bc34-1c20-4dea-a34a-ef3e2ff3085e",
+  "id": "538849d3-46de-4a6a-be22-6203f41ce2a7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "accounts": {
@@ -230,8 +230,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "reportsId": {
-          "name": "reportsId",
+        "reportId": {
+          "name": "reportId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -273,7 +273,7 @@
         "dashboardsReportIdx": {
           "name": "dashboardsReportIdx",
           "columns": [
-            "reportsId"
+            "reportId"
           ],
           "isUnique": false
         },
@@ -293,12 +293,12 @@
         }
       },
       "foreignKeys": {
-        "dashboards_reportsId_reports_id_fk": {
-          "name": "dashboards_reportsId_reports_id_fk",
+        "dashboards_reportId_reports_id_fk": {
+          "name": "dashboards_reportId_reports_id_fk",
           "tableFrom": "dashboards",
           "tableTo": "reports",
           "columnsFrom": [
-            "reportsId"
+            "reportId"
           ],
           "columnsTo": [
             "id"

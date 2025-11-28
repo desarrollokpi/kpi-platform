@@ -1,5 +1,6 @@
 const instancesRepository = require("./instances.repository");
 const { ValidationError, NotFoundError, ConflictError } = require("../common/exception");
+const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
 
 exports.createIntance = async (intanceData) => {
   const { name, baseUrl, apiUserName, apiPassword, accountId = null } = intanceData;
@@ -9,23 +10,31 @@ exports.createIntance = async (intanceData) => {
   }
 
   const existingIntance = await instancesRepository.findByName(name);
+
   if (existingIntance) {
     throw new ConflictError(`Ya existe una instancia con el nombre "${name}"`);
   }
 
-  const result = await instancesRepository.createIntance({
-    name,
-    baseUrl,
-    apiUserName: apiUserName || null,
-    apiPassword: apiPassword || null,
-    active: true,
-  });
+  const client = createApacheSuperSetClient({ baseUrl, apiUserName, apiPassword });
+  const instanceWorking = await client.testConnection();
 
-  if (accountId) {
-    await instancesRepository.associateAccountIntance(accountId, result.insertId);
+  if (instanceWorking) {
+    const result = await instancesRepository.createIntance({
+      name,
+      baseUrl,
+      apiUserName: apiUserName || null,
+      apiPassword: apiPassword || null,
+      active: true,
+    });
+
+    if (accountId) {
+      await instancesRepository.associateAccountIntance(accountId, result.insertId);
+    }
+
+    return await instancesRepository.findById(result.insertId);
   }
 
-  return await instancesRepository.findById(result.insertId);
+  throw new Error("Connection failed");
 };
 
 exports.getIntanceById = async (id) => {
@@ -67,25 +76,32 @@ exports.updateIntance = async (id, updateData) => {
   // Separar accountId de updateData ya que no se actualiza directamente en instances
   const { accountId, ...instanceData } = updateData;
 
-  // Actualizar los datos de la instancia
-  if (Object.keys(instanceData).length > 0) {
-    await instancesRepository.updateIntance(id, instanceData);
-  }
+  const client = createApacheSuperSetClient(instanceData);
+  const instanceWorking = await client.testConnection();
 
-  // Si se proporciona accountId, actualizar la relación en accountsInstances
-  if (accountId !== undefined) {
-    // Verificar que la cuenta existe
-    const accountsRepository = require("../accounts/accounts.repository");
-    const account = await accountsRepository.findById(accountId);
-    if (!account) {
-      throw new NotFoundError("Cuenta no encontrada");
+  if (instanceWorking) {
+    // Actualizar los datos de la instancia
+    if (Object.keys(instanceData).length > 0) {
+      await instancesRepository.updateIntance(id, instanceData);
     }
 
-    // Actualizar o crear la relación en accountsInstances
-    await instancesRepository.updateOrCreateAccountInstance(id, accountId);
+    // Si se proporciona accountId, actualizar la relación en accountsInstances
+    if (accountId !== undefined) {
+      // Verificar que la cuenta existe
+      const accountsRepository = require("../accounts/accounts.repository");
+      const account = await accountsRepository.findById(accountId);
+      if (!account) {
+        throw new NotFoundError("Cuenta no encontrada");
+      }
+
+      // Actualizar o crear la relación en accountsInstances
+      await instancesRepository.updateOrCreateAccountInstance(id, accountId);
+    }
+
+    return await instancesRepository.findById(id);
   }
 
-  return await instancesRepository.findById(id);
+  throw new Error("Connection failed");
 };
 
 exports.deleteIntance = async (id) => {

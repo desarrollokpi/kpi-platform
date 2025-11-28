@@ -31,7 +31,6 @@ exports.signIn = async (req, res, next) => {
       token,
     });
   } catch (error) {
-    console.log("error", error);
     next(error);
   }
 };

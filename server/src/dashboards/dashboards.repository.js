@@ -1,6 +1,6 @@
 const { db } = require("../../database");
 const { eq, and, isNull, sql } = require("drizzle-orm");
-const { dashboards, usersDashboards, reports, workspaces } = require("../db/schema");
+const { dashboards, usersDashboards, reports, workspaces, instances, users } = require("../db/schema");
 
 exports.createDashboard = async (dashboardData) => {
   const [result] = await db.insert(dashboards).values(dashboardData);
@@ -25,15 +25,15 @@ exports.findBySupersetId = async (supersetId) => {
   return result[0] || null;
 };
 
-exports.findByReportId = async (reportsId) => {
+exports.findByReportId = async (reportId) => {
   return await db
     .select()
     .from(dashboards)
-    .where(and(eq(dashboards.reportsId, reportsId), eq(dashboards.active, true), isNull(dashboards.deletedAt)));
+    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.active, true), isNull(dashboards.deletedAt)));
 };
 
 exports.findAll = async (options = {}) => {
-  const { active, limit, offset, reportsId } = options;
+  const { active, limit, offset, reportId } = options;
 
   let conditions = [isNull(dashboards.deletedAt)];
 
@@ -41,8 +41,8 @@ exports.findAll = async (options = {}) => {
     conditions.push(eq(dashboards.active, active));
   }
 
-  if (reportsId !== undefined) {
-    conditions.push(eq(dashboards.reportsId, reportsId));
+  if (reportId !== undefined) {
+    conditions.push(eq(dashboards.reportId, reportId));
   }
 
   let query = db
@@ -101,7 +101,7 @@ exports.findDashboardsForUser = async (userId, accountsId) => {
       d.superset_id as supersetId,
       d.embedded_id as embeddedId,
       d.name,
-      d.reports_id as reportsId,
+      d.reports_id as reportId,
       r.name as reportName,
       w.name as workspaceName,
       d.active,
@@ -160,13 +160,61 @@ exports.userHasAccess = async (userId, dashboardId) => {
   return result[0].count > 0;
 };
 
-exports.countByReportId = async (reportsId) => {
+exports.countByReportId = async (reportId) => {
   const result = await db
     .select({ count: sql`COUNT(*)` })
     .from(dashboards)
-    .where(and(eq(dashboards.reportsId, reportsId), eq(dashboards.active, true), isNull(dashboards.deletedAt)));
+    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.active, true), isNull(dashboards.deletedAt)));
 
   return result[0].count;
+};
+
+exports.getDashboardEmbedInfo = async (dashboardId) => {
+  const rows = await db
+    .select({
+      id: dashboards.id,
+      supersetId: dashboards.supersetId,
+      embeddedId: dashboards.embeddedId,
+      name: dashboards.name,
+      reportId: dashboards.reportId,
+      reportName: reports.name,
+      workspacesId: reports.workspacesId,
+      workspaceName: workspaces.name,
+      instanceId: instances.id,
+      instanceName: instances.name,
+      baseUrl: instances.baseUrl,
+      apiUserName: instances.apiUserName,
+      apiPassword: instances.apiPassword,
+      active: dashboards.active,
+      createdAt: dashboards.createdAt,
+      updatedAt: dashboards.updatedAt,
+    })
+    .from(dashboards)
+    .innerJoin(reports, eq(dashboards.reportId, reports.id))
+    .innerJoin(workspaces, eq(reports.workspacesId, workspaces.id))
+    .innerJoin(
+      instances,
+      and(eq(instances.id, dashboards.supersetId), eq(instances.active, true), isNull(instances.deletedAt))
+    )
+    .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
+    .limit(1);
+
+  return rows[0] || null;
+};
+
+exports.findActiveUserById = async (userId) => {
+  const rows = await db
+    .select({
+      id: users.id,
+      mail: users.mail,
+      name: users.name,
+      userName: users.userName,
+    })
+    .from(users)
+    .where(and(eq(users.id, userId), eq(users.active, true), isNull(users.deletedAt)))
+    .limit(1);
+
+  return rows[0] || null;
 };
 
 module.exports = exports;

@@ -1,7 +1,6 @@
 // Pages
 // Admin/User Management Components
 import ChangeUserPassword from "./components/users/ChangeUserPassword";
-import ChangePasswordPage from "./pages/ChangePasswordPage";
 import ChangeUserPasswordByUser from "./pages/ChangeUserPasswordByUser";
 
 // Root Admin pages
@@ -21,7 +20,7 @@ import ManageUserPage from "./pages/ManageUserPage";
 import AssignDashboardsToUser from "./components/usersDashboards/AssignDashboardsToUser";
 
 export const rootAdminRoutes = {
-  // Accounts, OK
+  // Accounts
   accounts: {
     name: "Cuentas",
     path: "/accounts",
@@ -37,7 +36,7 @@ export const rootAdminRoutes = {
     path: "/accounts/update/:accountId",
     element: ManageAccountPage,
   },
-  // Instances, Ok
+  // Instances
   instances: {
     name: "Instancias",
     path: "/instances",
@@ -53,7 +52,7 @@ export const rootAdminRoutes = {
     path: "/instances/update/:instanceId",
     element: ManageInstancePage,
   },
-  // Workspaces, ok
+  // Workspaces
   workspaces: {
     name: "Workspaces",
     path: "/workspaces",
@@ -69,7 +68,7 @@ export const rootAdminRoutes = {
     path: "/workspaces/update/:workspaceId",
     element: ManageWorkspacePage,
   },
-  // Reportes, ok
+  // Reportes
   reports: {
     name: "Reportes",
     path: "/reports",
@@ -136,6 +135,76 @@ export const rootAdminRoutes = {
 
 export const adminsRoutes = {
   // User Management (Tenant Admin manages users in their account)
+  // Instances
+  instances: {
+    name: "Instancias",
+    path: "/instances",
+    element: InstancesPage,
+  },
+  createInstance: {
+    name: "Crear Instancia",
+    path: "/instances/create",
+    element: ManageInstancePage,
+  },
+  updateInstance: {
+    name: "Editar Instancia",
+    path: "/instances/update/:instanceId",
+    element: ManageInstancePage,
+  },
+  // Workspaces
+  workspaces: {
+    name: "Workspaces",
+    path: "/workspaces",
+    element: WorkspacePage,
+  },
+  createWorkspace: {
+    name: "Crear Workspace",
+    path: "/workspaces/create",
+    element: ManageWorkspacePage,
+  },
+  updateWorkspace: {
+    name: "Editar Workspace",
+    path: "/workspaces/update/:workspaceId",
+    element: ManageWorkspacePage,
+  },
+  // Reportes
+  reports: {
+    name: "Reportes",
+    path: "/reports",
+    element: ReportsPage,
+  },
+  createReport: {
+    name: "Crear Reporte",
+    path: "/reports/create",
+    element: ManageReportPage,
+  },
+  updateReport: {
+    name: "Editar Reporte",
+    path: "/reports/update/:reportId",
+    element: ManageReportPage,
+  },
+  // Dashboards
+  dashboards: {
+    name: "Dashboards",
+    path: "/dashboards",
+    element: DashboardsPage,
+  },
+  createDashboard: {
+    name: "Crear Dashboard",
+    path: "/dashboards/create",
+    element: ManageDashboardPage,
+  },
+  updateDashboard: {
+    name: "Editar Dashboard",
+    path: "/dashboards/update/:dashboardId",
+    element: ManageDashboardPage,
+  },
+  showDashboard: {
+    name: "Mostrar Panel",
+    path: "/showDashboard/:dashboardId",
+    element: ShowDashboardPage,
+  },
+  // Users
   users: {
     name: "Usuarios",
     path: "/users",
@@ -161,62 +230,12 @@ export const adminsRoutes = {
     path: "/users/:userId/assignDashboards",
     element: AssignDashboardsToUser,
   },
-
-  // Reports Management (filtered by account)
-  reports: {
-    name: "Reportes",
-    path: "/reports",
-    element: ReportsPage,
-  },
-  createReport: {
-    name: "Crear Reporte",
-    path: "/reports/create",
-    element: ManageReportPage,
-  },
-  updateReport: {
-    name: "Editar Reporte",
-    path: "/reports/update/:reportId",
-    element: ManageReportPage,
-  },
-
-  // Dashboard Management (filtered by account)
-  dashboards: {
-    name: "Dashboards",
-    path: "/dashboards",
-    element: DashboardsPage,
-  },
-  createDashboard: {
-    name: "Crear Dashboard",
-    path: "/dashboards/create",
-    element: ManageDashboardPage,
-  },
-  updateDashboard: {
-    name: "Editar Dashboard",
-    path: "/dashboards/update/:dashboardId",
-    element: ManageDashboardPage,
-  },
-  showDashboard: {
-    name: "Ver Dashboard",
-    path: "/showDashboard/:dashboardId",
-    element: ShowDashboardPage,
-  },
-
-  // Account Settings
-  changePassword: {
-    name: "Cambiar Mi Contraseña",
-    path: "/changePassword",
-    element: ChangePasswordPage,
-  },
 };
 
 export const usersRoutes = {
-  changePassword: {
-    name: "Cambiar Contraseña",
-    path: "/changePassword",
-    element: ChangeUserPasswordByUser,
-  },
-  listDashboards: {
-    name: "Paneles de información",
+  // Dashboards
+  dashboards: {
+    name: "Dashboards",
     path: "/dashboards",
     element: DashboardsPage,
   },
@@ -224,5 +243,11 @@ export const usersRoutes = {
     name: "Mostrar Panel",
     path: "/showDashboard/:dashboardId",
     element: ShowDashboardPage,
+  },
+  // Users
+  changePassword: {
+    name: "Cambiar Contraseña",
+    path: "/changePassword",
+    element: ChangeUserPasswordByUser,
   },
 };

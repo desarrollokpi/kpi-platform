@@ -16,6 +16,8 @@ import {
   EXPORT_DASHBOARD_CSV,
   SEND_DASHBOARD_EMAIL,
   GET_DASHBOARD_EMBEDDED_CONFIG,
+  GET_REPORTS_LISTS,
+  GET_DASHBOARDS_INSTANCES,
 } from "./dashboardsTypes";
 
 const initialState = {
@@ -27,6 +29,8 @@ const initialState = {
   embedInfo: null,
   embeddedConfig: null,
   dashboardUsers: [],
+  reportsList: [],
+  dashboardsInstancesList: [],
 };
 
 const dashboardsReducer = (state = initialState, action) => {
@@ -71,9 +75,7 @@ const dashboardsReducer = (state = initialState, action) => {
     case UPDATE_DASHBOARD:
       return {
         ...state,
-        dashboards: state.dashboards.map((dashboard) =>
-          dashboard.id === action.payload.id ? action.payload : dashboard
-        ),
+        dashboards: state.dashboards.map((dashboard) => (dashboard.id === action.payload.id ? action.payload : dashboard)),
         dashboard: action.payload,
         loading: false,
         message: "Dashboard actualizado exitosamente",
@@ -82,9 +84,7 @@ const dashboardsReducer = (state = initialState, action) => {
     case DELETE_DASHBOARD:
       return {
         ...state,
-        dashboards: state.dashboards.filter(
-          (dashboard) => dashboard.id !== action.payload.dashboardId
-        ),
+        dashboards: state.dashboards.filter((dashboard) => dashboard.id !== action.payload.dashboardId),
         loading: false,
         message: action.payload.message || "Dashboard eliminado exitosamente",
       };
@@ -92,9 +92,7 @@ const dashboardsReducer = (state = initialState, action) => {
     case ACTIVATE_DASHBOARD:
       return {
         ...state,
-        dashboards: state.dashboards.map((dashboard) =>
-          dashboard.id === action.payload.id ? action.payload : dashboard
-        ),
+        dashboards: state.dashboards.map((dashboard) => (dashboard.id === action.payload.id ? action.payload : dashboard)),
         dashboard: action.payload,
         loading: false,
         message: "Dashboard activado exitosamente",
@@ -132,9 +130,7 @@ const dashboardsReducer = (state = initialState, action) => {
     case REMOVE_DASHBOARD_FROM_USER:
       return {
         ...state,
-        dashboardUsers: state.dashboardUsers.filter(
-          (user) => user.id !== action.payload.userId
-        ),
+        dashboardUsers: state.dashboardUsers.filter((user) => user.id !== action.payload.userId),
         loading: false,
         message: action.payload.message || "Dashboard removido del usuario exitosamente",
       };
@@ -157,6 +153,20 @@ const dashboardsReducer = (state = initialState, action) => {
       return {
         ...state,
         embeddedConfig: action.payload,
+        loading: false,
+      };
+
+    case GET_REPORTS_LISTS:
+      return {
+        ...state,
+        reportsList: action.payload,
+        loading: false,
+      };
+
+    case GET_DASHBOARDS_INSTANCES:
+      return {
+        ...state,
+        dashboardsInstancesList: action.payload,
         loading: false,
       };
 

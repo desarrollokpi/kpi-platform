@@ -73,20 +73,57 @@ exports.getWorkspaceCount = async (activeOnly = false) => {
 };
 
 exports.updateWorkspace = async (id, updateData) => {
-  const workspace = await workspacesRepository.findById(id);
+  const { name, active, accountId, instanceId } = updateData;
 
+  const workspace = await workspacesRepository.findById(id);
   if (!workspace) {
     throw new NotFoundError("Workspace no encontrado");
   }
 
-  if (updateData.uuid && updateData.uuid !== workspace.uuid) {
-    const existingWorkspace = await workspacesRepository.findByUuid(updateData.uuid);
-    if (existingWorkspace) {
-      throw new ConflictError(`Ya existe un workspace con el UUID "${updateData.uuid}"`);
-    }
+  if (!name) {
+    throw new ValidationError("El nombre es requerido");
   }
 
-  await workspacesRepository.updateWorkspace(id, updateData);
+  if (!accountId) {
+    throw new ValidationError("Para actualizar un Workspace es necesario asociarlo a una cuenta");
+  }
+
+  if (!instanceId) {
+    throw new ValidationError("Para actualizar un Workspace es necesario asociarlo a una instancia");
+  }
+
+  const accountsRepository = require("../accounts/accounts.repository");
+  const account = await accountsRepository.findById(accountId);
+  if (!account) {
+    throw new NotFoundError("Account no encontrado");
+  }
+
+  const instancesRepository = require("../instances/instances.repository");
+  const instance = await instancesRepository.findById(instanceId);
+  if (!instance) {
+    throw new NotFoundError("Instance no encontrada");
+  }
+
+  const accountInstance = await workspacesRepository.findAccountInstance(accountId, instanceId);
+  if (!accountInstance) {
+    throw new NotFoundError(
+      "No existe una relación entre el account y la instance. Debe crear la relación accountsInstances primero."
+    );
+  }
+
+  await workspacesRepository.updateWorkspace(id, {
+    name,
+    active: active !== undefined ? active : workspace.active,
+  });
+
+  try {
+    await workspacesRepository.assignWorkspaceToAccountInstance(accountInstance.id, id);
+  } catch (error) {
+    // Si ya existe la relación (clave única), ignorar el error
+    if (!(error && error.code === "ER_DUP_ENTRY")) {
+      throw error;
+    }
+  }
 
   return await workspacesRepository.findById(id);
 };

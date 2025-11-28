@@ -169,6 +169,26 @@ exports.activate = async (id) => {
 };
 
 exports.assignWorkspaceToAccountInstance = async (accountInstanceId, workspaceId) => {
+  const existing = await db
+    .select({
+      id: accountsInstancesWorkspaces.id,
+    })
+    .from(accountsInstancesWorkspaces)
+    .where(
+      and(
+        eq(accountsInstancesWorkspaces.idAccountsInstances, accountInstanceId),
+        eq(accountsInstancesWorkspaces.idWorkspaces, workspaceId)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    return await db
+      .update(accountsInstancesWorkspaces)
+      .set({ active: true, deletedAt: null, updatedAt: new Date() })
+      .where(eq(accountsInstancesWorkspaces.id, existing[0].id));
+  }
+
   const result = await db.insert(accountsInstancesWorkspaces).values({
     idAccountsInstances: accountInstanceId,
     idWorkspaces: workspaceId,

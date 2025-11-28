@@ -1,9 +1,8 @@
 const permissionsService = require("../common/permissions.service");
 const dashboardsServices = require("./dashboards.services");
+const dashboardsRepository = require("./dashboards.repository");
 const emailService = require("../common/email.service");
 const { ForbiddenError, NotFoundError, ValidationError } = require("../common/exception");
-const { db } = require("../../database");
-const { sql } = require("drizzle-orm");
 
 exports.generateDashboardPdf = async (dashboardId, userId) => {
   // Validate access using permissions service (Regla de oro)
@@ -19,22 +18,6 @@ exports.generateDashboardPdf = async (dashboardId, userId) => {
   }
 
   try {
-    // TODO: Implement actual PDF generation
-    // Option 1: Using Puppeteer (headless Chrome)
-    // const puppeteer = require('puppeteer');
-    // const browser = await puppeteer.launch();
-    // const page = await browser.newPage();
-    // await page.goto(`${dashboardInfo.baseUrl}/superset/dashboard/${dashboardInfo.supersetId}/`);
-    // const pdfBuffer = await page.pdf({ format: 'A4' });
-    // await browser.close();
-    // return pdfBuffer;
-
-    // Option 2: Using PDFKit for simple document
-    // const PDFDocument = require('pdfkit');
-    // const doc = new PDFDocument();
-    // ... add content ...
-    // return doc;
-
     // For now: Create a placeholder PDF with metadata
     const PDFDocument = require("pdfkit");
     const doc = new PDFDocument();
@@ -58,7 +41,7 @@ exports.generateDashboardPdf = async (dashboardId, userId) => {
       doc.moveDown();
       doc.fontSize(12).text(`Report: ${dashboardInfo.reportName}`);
       doc.text(`Workspace: ${dashboardInfo.workspaceName}`);
-      doc.text(`Instance: ${dashboardInfo.intanceName}`);
+      doc.text(`Instance: ${dashboardInfo.instanceName}`);
       doc.moveDown();
       doc.fontSize(10).text(`Generated: ${new Date().toLocaleString()}`);
       doc.text(`Superset ID: ${dashboardInfo.supersetId}`);
@@ -79,6 +62,7 @@ exports.generateDashboardPdf = async (dashboardId, userId) => {
     throw new Error(`Failed to generate PDF: ${error.message}`);
   }
 };
+
 exports.sendDashboardEmail = async (dashboardId, userId) => {
   // Validate access
   const hasAccess = await permissionsService.validateUserDashboardAccess(userId, dashboardId);
@@ -86,20 +70,12 @@ exports.sendDashboardEmail = async (dashboardId, userId) => {
     throw new ForbiddenError("You do not have access to this dashboard");
   }
 
-  // Get user email
-  const [userRows] = await db.execute(sql`
-    SELECT mail, name, user_name as userName
-    FROM users
-    WHERE id = ${userId}
-      AND active = 1
-      AND deleted_at IS NULL
-  `);
+  // Get user email using repository (Drizzle)
+  const user = await dashboardsRepository.findActiveUserById(userId);
 
-  if (!userRows || userRows.length === 0) {
+  if (!user) {
     throw new NotFoundError("User not found");
   }
-
-  const user = userRows[0];
   if (!user.mail) {
     throw new ValidationError("User does not have an email address configured");
   }

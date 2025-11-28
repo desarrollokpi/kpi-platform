@@ -26,7 +26,7 @@ const UsersList = () => {
   const { users, loading, totalCount } = useSelector(({ users }) => users, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
   const accountsId = useMemo(() => user?.accountId, [user]);
-  const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "${prefixRoute}"), [isSuperuser]);
+  const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
   const toggleActive = useCallback(
     (id, active) => {
@@ -51,7 +51,7 @@ const UsersList = () => {
         (user) => {
           navigate(`/${prefixRoute}/users/${user.id}/assignDashboards`);
         },
-        [navigate]
+        [navigate, prefixRoute]
       ),
       color: "primary",
       icon: <DashboardIcon />,
@@ -62,7 +62,7 @@ const UsersList = () => {
         (user) => {
           navigate(`/${prefixRoute}/users/update/${user.id}`);
         },
-        [navigate]
+        [navigate, prefixRoute]
       ),
       color: "success",
       icon: <EditIcon />,
@@ -73,7 +73,7 @@ const UsersList = () => {
         (user) => {
           navigate(`/${prefixRoute}/users/changePassword/${user.id}`);
         },
-        [navigate]
+        [navigate, prefixRoute]
       ),
       color: "error",
       icon: <KeyIcon />,

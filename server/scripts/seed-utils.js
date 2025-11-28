@@ -300,11 +300,11 @@ async function ensureReport({ workspacesId, name, active = true }) {
  * Crea o actualiza un dashboard
  * NUEVO: dashboards pertenecen a reports y tienen superset_id + embedded_id
  */
-async function ensureDashboard({ reportsId, supersetId, embeddedId = null, name, active = true }) {
+async function ensureDashboard({ reportId, supersetId, embeddedId = null, name, active = true }) {
   const existing = await db
     .select({ id: dashboards.id })
     .from(dashboards)
-    .where(and(eq(dashboards.reportsId, reportsId), eq(dashboards.supersetId, supersetId)))
+    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.supersetId, supersetId)))
     .limit(1);
 
   if (existing.length) {
@@ -314,7 +314,7 @@ async function ensureDashboard({ reportsId, supersetId, embeddedId = null, name,
   }
 
   await db.insert(dashboards).values({
-    reportsId,
+    reportId,
     supersetId,
     embeddedId,
     name,
@@ -324,7 +324,7 @@ async function ensureDashboard({ reportsId, supersetId, embeddedId = null, name,
   const created = await db
     .select({ id: dashboards.id })
     .from(dashboards)
-    .where(and(eq(dashboards.reportsId, reportsId), eq(dashboards.supersetId, supersetId)))
+    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.supersetId, supersetId)))
     .limit(1);
 
   return created[0].id;

@@ -71,7 +71,7 @@ const ManageUser = () => {
       dispatch(getAccountsLists());
       dispatch(getRoleLists());
     }
-  }, [isSuperuser, getRoleLists, getAccountsLists]);
+  }, [isSuperuser, dispatch]);
 
   if (loading && userId && !thisUser) {
     return (

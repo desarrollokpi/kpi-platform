@@ -1,23 +1,36 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
 import { Switch, Typography, Stack, Box } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
+import PreviewIcon from "@mui/icons-material/Preview";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { getAllDashboards, activateDashboard, deactivateDashboard } from "../../state/dashboards/dashboardsActions";
 import { useNavigate } from "react-router-dom";
+import useSuperuser from "../../hooks/useSuperuser";
+import useAdmin from "../../hooks/useAdmin";
 
 const DashboardsList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { isSuperuser } = useSuperuser();
+  const { isAdmin } = useAdmin();
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
-
-  const { dashboards, loading, totalCount } = useSelector((state) => state.dashboards, shallowEqual);
+  const { dashboards, loading, totalCount } = useSelector(({ dashboards }) => dashboards, shallowEqual);
+  const prefixRoute = useMemo(() => {
+    if (isSuperuser) {
+      return "superusers";
+    }
+    if (isAdmin) {
+      return "admins";
+    }
+    return "users";
+  }, [isSuperuser, isAdmin]);
 
   const toggleActive = useCallback(
     (id, active) => {
@@ -33,19 +46,36 @@ const DashboardsList = () => {
     { label: "¿Está Activo?", key: "active", type: "boolean", onToggle: (item, value) => toggleActive(item.id, value) },
   ];
 
-  const actions = [
-    {
-      tooltip: "Editar",
-      onClick: useCallback(
-        (dashboard) => {
-          navigate(`/superusers/dashboards/update/${dashboard.id}`);
-        },
-        [navigate]
-      ),
-      color: "success",
-      icon: <EditIcon />,
-    },
-  ];
+  const actions =
+    isAdmin || isSuperuser
+      ? [
+          {
+            tooltip: "Editar",
+            onClick: (dashboard) => {
+              navigate(`/superusers/dashboards/update/${dashboard.id}`);
+            },
+            color: "success",
+            icon: <EditIcon />,
+          },
+          {
+            tooltip: "Ver",
+            onClick: (dashboard) => {
+              navigate(`/${prefixRoute}/showDashboard/${dashboard.id}`);
+            },
+            color: "info",
+            icon: <PreviewIcon />,
+          },
+        ]
+      : [
+          {
+            tooltip: "Ver",
+            onClick: (dashboard) => {
+              navigate(`/${prefixRoute}/showDashboard/${dashboard.id}`);
+            },
+            color: "info",
+            icon: <PreviewIcon />,
+          },
+        ];
 
   const handlePageChange = useCallback((newPage) => {
     setPage(newPage);
@@ -84,7 +114,7 @@ const DashboardsList = () => {
           No hay dashboards configurados
         </Typography>
         <Typography variant="body2" color="textSecondary" mt={1}>
-          Crea el primer dashboard vinculado a Superset
+          Vincula el primer dashboard desde Apache Superset
         </Typography>
       </Box>
     );

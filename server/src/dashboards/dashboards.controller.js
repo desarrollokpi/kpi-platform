@@ -21,12 +21,7 @@ exports.getAllDashboards = async (req, res, next) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const { active, limit, offset, reportsId, listed = "false" } = req.query;
-
-    if (listed === "true") {
-      const list = await dashboardsServices.getDashboardsForSelect();
-      return res.json(list);
-    }
+    const { active, limit, offset, reportId } = req.query;
 
     const options = {};
 
@@ -39,8 +34,8 @@ exports.getAllDashboards = async (req, res, next) => {
     if (offset) {
       options.offset = parseInt(offset);
     }
-    if (reportsId) {
-      options.reportsId = parseInt(reportsId);
+    if (reportId) {
+      options.reportId = parseInt(reportId);
     }
 
     const dashboards = await dashboardsServices.getAllDashboards(options, userId);
@@ -53,6 +48,22 @@ exports.getAllDashboards = async (req, res, next) => {
       count: dashboards.length,
       totalCount,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getDashboardsInstancesForSelect = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { reportId } = req.query;
+    const list = await dashboardsServices.getDashboardsInstancesForSelect({ reportId: parseInt(reportId) });
+
+    res.json(list);
   } catch (error) {
     next(error);
   }
@@ -214,9 +225,10 @@ exports.getDashboardEmbedInfo = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    const embedInfo = await dashboardsServices.getDashboardEmbedInfo(parseInt(id), userId);
+    const embeddedService = require("./dashboards.embedded.service");
+    const config = await embeddedService.getDashboardEmbeddedConfig(parseInt(id), userId);
 
-    res.json(embedInfo);
+    res.json(config);
   } catch (error) {
     next(error);
   }

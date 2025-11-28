@@ -1,6 +1,6 @@
 const permissionsService = require("../common/permissions.service");
 const dashboardsServices = require("./dashboards.services");
-const { createSupersetClient } = require("../supersetInstances/supersetApi.service");
+const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
 const { ForbiddenError, NotFoundError } = require("../common/exception");
 const { stringify } = require("csv-stringify/sync");
 
@@ -17,86 +17,106 @@ exports.exportDashboardDataToCsv = async (dashboardId, userId) => {
     throw new NotFoundError("Dashboard not found or not accessible");
   }
 
+  console.log("dashboardInfo", dashboardInfo);
+
   try {
-    // 3. Create Superset API client
-    const supersetClient = createSupersetClient({
+    const supersetClient = createApacheSuperSetClient({
       baseUrl: dashboardInfo.baseUrl,
       apiUserName: dashboardInfo.apiUserName,
+      apiPassword: dashboardInfo.apiPassword,
     });
 
-    // 4. Get dashboard details from Superset
-    const dashboard = await supersetClient.getDashboard(dashboardInfo.supersetId);
+    let dashboard = null;
+    try {
+      let supersetDashboardId = null;
 
-    // 5. Extract data from dashboard
-    // Note: Superset API doesn't directly expose underlying data for dashboards
-    // We need to query each chart/slice individually
-    let allData = [];
-    let headers = [];
-
-    if (dashboard.slices && dashboard.slices.length > 0) {
-      // For each chart in the dashboard, try to get its data
-      for (const slice of dashboard.slices) {
+      if (dashboardInfo.embeddedId) {
         try {
-          const chartData = await supersetClient.getChart(slice.id);
-
-          // Extract data from chart metadata
-          // This is a simplified approach - actual implementation may vary
-          // based on Superset version and chart type
-          if (chartData.params) {
-            // Add chart name as section header
-            allData.push({
-              section: `Chart: ${slice.slice_name || slice.form_data?.slice_name || chartData.slice_name}`,
-            });
-
-            // TODO: Query actual data using Superset's chart data endpoint
-            // This would require calling /api/v1/chart/{id}/data endpoint
-            // For now, we include metadata
-            allData.push({
-              chartId: slice.id,
-              chartName: slice.slice_name || "Unnamed Chart",
-              datasource: chartData.datasource_name_text || "N/A",
-              vizType: chartData.viz_type || "N/A",
-            });
-          }
-        } catch (chartError) {
-          console.error(`Error fetching chart ${slice.id}:`, chartError.message);
-          // Continue with other charts
+          const embeddedConfig = await supersetClient.getEmbeddedDashboardByUuid(dashboardInfo.embeddedId);
+          supersetDashboardId = embeddedConfig && embeddedConfig.dashboard_id ? embeddedConfig.dashboard_id : null;
+        } catch (embeddedError) {
+          console.error("Error fetching embedded dashboard config for CSV:", embeddedError.message);
         }
       }
-    } else {
-      // No charts found, export dashboard metadata
-      allData.push({
-        dashboardId: dashboard.id,
-        dashboardName: dashboard.dashboard_title,
-        status: dashboard.status,
-        published: dashboard.published,
-        owners: dashboard.owners?.map((o) => o.username).join(", ") || "N/A",
-      });
+
+      console.log("supersetDashboardId", supersetDashboardId);
+
+      if (supersetDashboardId) {
+        dashboard = await supersetClient.getDashboard(supersetDashboardId);
+      } else {
+        console.warn("Unable to resolve Superset dashboard id from embedded configuration for CSV export.");
+      }
+    } catch (dashboardError) {
+      console.error("Error fetching dashboard from Superset for CSV:", dashboardError.message);
     }
 
-    // 6. Convert to CSV
+    let allData = [];
+
+    console.log("dashboard", dashboard);
+
+    const dashboardTitle = dashboard?.dashboard_title || dashboardInfo.name || "dashboard";
+
+    if (dashboard && dashboard.position_json) {
+      let jsonPosition;
+      try {
+        jsonPosition = JSON.parse(dashboard.position_json);
+      } catch (parseError) {
+        console.error("Error parsing dashboard position_json:", parseError.message);
+      }
+
+      if (jsonPosition && typeof jsonPosition === "object") {
+        const charts = [];
+
+        for (const [key, value] of Object.entries(jsonPosition)) {
+          if (!value || typeof value !== "object") continue;
+
+          const meta = value.meta || {};
+
+          const hasChartInKey = typeof key === "string" && key.toUpperCase().includes("CHART");
+          const isChartType = value.type === "CHART";
+          const chartId = meta.chartId;
+          const chartNameFromMeta = meta.sliceName;
+
+          if (!chartId || !(hasChartInKey || isChartType)) continue;
+
+          try {
+            const chartData = await supersetClient.getChart(chartId);
+            console.log("chartData", chartData);
+
+            const chartName = chartNameFromMeta || chartData.slice_name || `Chart ${chartId}`;
+            let queryText = chartData.query_context || chartData.params || "";
+
+            charts.push({
+              name: chartName,
+              query: queryText,
+            });
+          } catch (chartError) {
+            console.log("chartError", chartError);
+            console.error(`Error fetching chart ${chartId}:`, chartError.message);
+          }
+        }
+
+        if (charts.length > 0) {
+          const row = {};
+          charts.forEach((chart) => {
+            row[chart.name] = chart.query;
+          });
+          allData.push(row);
+        }
+      }
+    }
+
     let csvContent;
     if (allData.length > 0) {
-      // Get all unique keys from data as headers
-      const allKeys = new Set();
-      allData.forEach((row) => {
-        Object.keys(row).forEach((key) => allKeys.add(key));
-      });
-      headers = Array.from(allKeys);
-
       csvContent = stringify(allData, {
         header: true,
-        columns: headers,
       });
     } else {
-      // Empty data
       csvContent = "No data available for this dashboard\n";
     }
 
-    // 7. Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
-    const safeName = (dashboardInfo.name || "dashboard").replace(/[^a-z0-9]/gi, "_").toLowerCase();
-    const filename = `dashboard_${safeName}_${timestamp}.csv`;
+    const filename = `${dashboardTitle}_${timestamp}.csv`;
 
     return {
       csv: csvContent,
@@ -105,9 +125,22 @@ exports.exportDashboardDataToCsv = async (dashboardId, userId) => {
     };
   } catch (error) {
     console.error("Error exporting dashboard data:", error);
-    throw new Error(`Failed to export dashboard data: ${error.message}`);
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    const safeName = (dashboardId || "dashboard")
+      .toString()
+      .replace(/[^a-z0-9]/gi, "_")
+      .toLowerCase();
+    const filename = `dashboard_${safeName}_${timestamp}.csv`;
+
+    return {
+      csv: "No data available for this dashboard\n",
+      filename,
+      contentType: "text/csv",
+    };
   }
 };
+
 exports.exportDashboardDataViaQuery = async (dashboardId, userId) => {
   // Validate access
   const hasAccess = await permissionsService.validateUserDashboardAccess(userId, dashboardId);
@@ -123,9 +156,10 @@ exports.exportDashboardDataViaQuery = async (dashboardId, userId) => {
 
   try {
     // Create Superset client
-    const supersetClient = createSupersetClient({
+    const supersetClient = createApacheSuperSetClient({
       baseUrl: dashboardInfo.baseUrl,
       apiUserName: dashboardInfo.apiUserName,
+      apiPassword: dashboardInfo.apiPassword,
     });
 
     // Get dashboard to find database connections

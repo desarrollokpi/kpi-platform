@@ -11,12 +11,6 @@ const useAuth = () => {
     return Boolean(user && isAuthenticated);
   }, [user, isAuthenticated]);
 
-  const roleName = useMemo(() => {
-    if (!user) return undefined;
-    if (Array.isArray(user.roles) && user.roles.length > 0) return user.roles[0];
-    return user.role;
-  }, [user]);
-
   useEffect(() => {
     if (!user && !loading) {
       dispatch(readProfile());

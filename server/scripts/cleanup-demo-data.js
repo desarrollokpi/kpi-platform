@@ -94,7 +94,7 @@ async function deleteDemoData() {
 
     if (reportIds.length) {
       // Delete dashboards that belong to demo reports
-      const demoDashboards = await db.select({ id: dashboards.id }).from(dashboards).where(inArray(dashboards.reportsId, reportIds));
+      const demoDashboards = await db.select({ id: dashboards.id }).from(dashboards).where(inArray(dashboards.reportId, reportIds));
 
       const dashboardIds = demoDashboards.map((dashboard) => dashboard.id);
 

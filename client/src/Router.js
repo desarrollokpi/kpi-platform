@@ -10,11 +10,8 @@ import PrivateRoute from "./components/routing/PrivateRoute";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
-// Page like Components
-import TermsAndConditions from "./components/termsAndConditions/TermsAndConditionsPage";
-
 // Actions
-// import { readTermsAndConditions } from "./state/termsAndConditions/termsAndConditionsActions";
+
 import { readLogoBySubdomain } from "./state/accounts/accountsActions";
 import { useDispatch } from "react-redux";
 
@@ -56,8 +53,6 @@ const Router = () => {
         {roleRoutes(adminsRoutes, "admins", AdminRoute)}
 
         {roleRoutes(usersRoutes, "users", PrivateRoute)}
-
-        {/* <Route path="/termsAndConditions" element={<TermsAndConditions />} /> */}
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

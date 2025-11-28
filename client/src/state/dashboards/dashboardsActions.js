@@ -16,34 +16,37 @@ import {
   EXPORT_DASHBOARD_CSV,
   SEND_DASHBOARD_EMAIL,
   GET_DASHBOARD_EMBEDDED_CONFIG,
+  GET_REPORTS_LISTS,
+  GET_DASHBOARDS_INSTANCES,
 } from "./dashboardsTypes";
 import axios from "axios";
 
-const extractErrorMessage = (error) =>
-  error?.response?.data?.message || error?.message || "Unexpected error";
+const extractErrorMessage = (error) => error?.response?.data?.message || error?.message || "Unexpected error";
 
 const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
 
 export const clearMessage = () => (dispatch) => dispatch({ type: CLEAR_MESSAGE });
 
 // Get all dashboards with optional filters
-export const getAllDashboards = (filters = {}) => async (dispatch) => {
-  setLoading(dispatch, true);
-  try {
-    const { data } = await axios.get(`/dashboards`, { params: filters });
-    dispatch({
-      type: GET_ALL_DASHBOARDS,
-      payload: data,
-    });
-  } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
-  } finally {
-    setLoading(dispatch, false);
-  }
-};
+export const getAllDashboards =
+  (filters = {}) =>
+  async (dispatch) => {
+    setLoading(dispatch, true);
+    try {
+      const { data } = await axios.get(`/dashboards`, { params: filters });
+      dispatch({
+        type: GET_ALL_DASHBOARDS,
+        payload: data,
+      });
+    } catch (error) {
+      dispatch({
+        type: ERROR,
+        payload: extractErrorMessage(error),
+      });
+    } finally {
+      setLoading(dispatch, false);
+    }
+  };
 
 // Get dashboard by ID
 export const getDashboardById = (dashboardId) => async (dispatch) => {
@@ -260,14 +263,14 @@ export const exportDashboardCsv = (dashboardId) => async (dispatch) => {
   setLoading(dispatch, true);
   try {
     const { data } = await axios.get(`/dashboards/${dashboardId}/exportCsv`, {
-      responseType: 'blob',
+      responseType: "blob",
     });
 
     // Create download link
     const url = window.URL.createObjectURL(new Blob([data]));
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.setAttribute('download', `dashboard_${dashboardId}_${Date.now()}.csv`);
+    link.setAttribute("download", `dashboard_${dashboardId}_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -288,23 +291,25 @@ export const exportDashboardCsv = (dashboardId) => async (dispatch) => {
 };
 
 // Send dashboard by email (PDF snapshot)
-export const sendDashboardEmail = (dashboardId, emailData = {}) => async (dispatch) => {
-  setLoading(dispatch, true);
-  try {
-    const { data } = await axios.post(`/dashboards/${dashboardId}/sendEmail`, emailData);
-    dispatch({
-      type: SEND_DASHBOARD_EMAIL,
-      payload: { success: true, message: data.message || "Email enviado exitosamente" },
-    });
-  } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
-  } finally {
-    setLoading(dispatch, false);
-  }
-};
+export const sendDashboardEmail =
+  (dashboardId, emailData = {}) =>
+  async (dispatch) => {
+    setLoading(dispatch, true);
+    try {
+      const { data } = await axios.post(`/dashboards/${dashboardId}/sendEmail`, emailData);
+      dispatch({
+        type: SEND_DASHBOARD_EMAIL,
+        payload: { success: true, message: data.message || "Email enviado exitosamente" },
+      });
+    } catch (error) {
+      dispatch({
+        type: ERROR,
+        payload: extractErrorMessage(error),
+      });
+    } finally {
+      setLoading(dispatch, false);
+    }
+  };
 
 // Get dashboard embedded config (guest token + config for embedding)
 export const getDashboardEmbeddedConfig = (dashboardId) => async (dispatch) => {
@@ -315,7 +320,7 @@ export const getDashboardEmbeddedConfig = (dashboardId) => async (dispatch) => {
       type: GET_DASHBOARD_EMBEDDED_CONFIG,
       payload: data,
     });
-    return data; // Return for direct usage in component
+    return data;
   } catch (error) {
     dispatch({
       type: ERROR,
@@ -326,3 +331,46 @@ export const getDashboardEmbeddedConfig = (dashboardId) => async (dispatch) => {
     setLoading(dispatch, false);
   }
 };
+
+export const getReportsLists =
+  ({ accountId }) =>
+  async (dispatch) => {
+    setLoading(dispatch, true);
+    try {
+      const { data } = await axios.get(`/reports`, { params: { listed: true, accountId } });
+      dispatch({
+        type: GET_REPORTS_LISTS,
+        payload: data,
+      });
+    } catch (error) {
+      dispatch({
+        type: ERROR,
+        payload: extractErrorMessage(error),
+      });
+      throw error; // Re-throw for component error handling
+    } finally {
+      setLoading(dispatch, false);
+    }
+  };
+
+export const getDashboardsInstancesLists =
+  ({ reportId }) =>
+  async (dispatch) => {
+    setLoading(dispatch, true);
+
+    try {
+      const { data } = await axios.get(`/dashboards/instancesForSelect`, { params: { reportId } });
+      dispatch({
+        type: GET_DASHBOARDS_INSTANCES,
+        payload: data,
+      });
+    } catch (error) {
+      dispatch({
+        type: ERROR,
+        payload: extractErrorMessage(error),
+      });
+      throw error; // Re-throw for component error handling
+    } finally {
+      setLoading(dispatch, false);
+    }
+  };

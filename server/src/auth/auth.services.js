@@ -8,7 +8,6 @@ const usersRedisRepository = require("./auth.redis.repository");
 
 exports.isSessionActive = async (userId) => {
   const sessionUserId = await usersRedisRepository.getById(userId);
-  console.log("sessionUserId", sessionUserId);
   return sessionUserId === userId;
 };
 

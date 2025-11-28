@@ -14,7 +14,7 @@ const dashboards = mysqlTable(
     supersetId: int("supersetId").notNull(),
     embeddedId: varchar("embeddedId", { length: 64 }),
     name: varchar("name", { length: 100 }).notNull(),
-    reportsId: int("reportsId")
+    reportId: int("reportId")
       .notNull()
       .references(() => reports.id, { onDelete: "restrict" }),
     active: boolean("active").notNull().default(true),
@@ -27,7 +27,7 @@ const dashboards = mysqlTable(
       .default(sql`now()`)
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("dashboardsReportIdx").on(t.reportsId), index("dashboardsActiveIdx").on(t.active), index("dashboardsSupersetIdx").on(t.supersetId)]
+  (t) => [index("dashboardsReportIdx").on(t.reportId), index("dashboardsActiveIdx").on(t.active), index("dashboardsSupersetIdx").on(t.supersetId)]
 );
 
 /**

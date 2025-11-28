@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom'
 
 import Loading from '../layout/Loading'
 import FormField from '../layout/FormField'
-import { Paper, Typography, Grid, Button, Collapse } from '@mui/material'
+import { Paper, Typography, Grid, Button } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
 import useForm from './../../hooks/useForm'
 
@@ -23,7 +23,6 @@ const ChangeUserPassword = () => {
   const buttonHasBeenClicked = useNavigateAfterAction(loading, '/admins/users')
 
   const [error, toggleError] = useToggle(false)
-  const [show, toggleShow] = useToggle(false)
 
   const [fields, bindField, areFieldsEmpty] = useForm({
     password: '',
@@ -32,11 +31,11 @@ const ChangeUserPassword = () => {
 
   React.useEffect(() => {
     if (users.length === 0) dispatch(readUsers())
-  }, [])
+  }, [dispatch, users.length])
 
   React.useEffect(() => {
     if (error && fields.password === fields.confirmPassword) toggleError()
-  }, [error, fields.password, fields.confirmPassword])
+  }, [error, fields.password, fields.confirmPassword, toggleError])
 
   let thisUser = undefined
 
@@ -106,7 +105,7 @@ const ChangeUserPassword = () => {
           onClick={handleChangeUserPassword}
           variant='contained'
           loading={loading}
-          disabled={areFieldsEmpty || show}
+          disabled={areFieldsEmpty}
         >
           {userId ? 'Guardar cambios' : 'Crear usuario'}
         </LoadingButton>

@@ -23,14 +23,14 @@ const DashboardsPage = () => {
           Gestión de Dashboards
         </Typography>
         <Typography variant="body2" color="textSecondary">
-          Administra los dashboards de Superset vinculados a reportes y asignados a usuarios
+          Administra los dashboards de Apache Superset vinculados a reportes y asignados a usuarios
         </Typography>
       </Box>
 
       <DashboardsList />
 
       <PositionedButton onClick={handleCreate} startIcon={<AddIcon />} variant="contained" justifyContent="flex-end">
-        Crear dashboard
+        Vincular dashboards
       </PositionedButton>
     </Paper>
   );

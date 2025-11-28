@@ -26,7 +26,7 @@ const ChangePasswordPage = () => {
 
   React.useEffect(() => {
     if (error && fields.password === fields.confirmPassword) toggleError();
-  }, [error, fields.password, fields.confirmPassword]);
+  }, [error, fields.password, fields.confirmPassword, toggleError]);
 
   const handleChangePassword = () => {
     if (fields.password !== fields.confirmPassword) {

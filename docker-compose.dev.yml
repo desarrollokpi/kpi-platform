@@ -7,6 +7,8 @@ services:
       context: ./client
       dockerfile: Dockerfile.dev
     container_name: kpi-client
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"
     volumes:
@@ -35,6 +37,8 @@ services:
       context: ./server
       dockerfile: Dockerfile.dev
     container_name: kpi-server
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "5050:5050"
     volumes:
@@ -92,7 +96,7 @@ services:
       - ./server/migrations:/app/migrations
     environment:
       SEED_ENV: /app/config/.env.dev
-    command: ["sh", "-c", "pnpm run db:generate && pnpm run db:migrate && pnpm run seed:base && pnpm run seed:demo"]
+    command: ["sh", "-c", "pnpm run db:generate && pnpm run db:push --force && pnpm run seed:base && pnpm run seed:demo"]
     restart: "no"
 
 volumes:

@@ -103,7 +103,6 @@ exports.getAccountsForSelect = async () => {
   try {
     return await accountsRepository.getForSelect();
   } catch (error) {
-    console.log("error", error);
     return [];
   }
 };

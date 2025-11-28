@@ -1,21 +1,28 @@
 const dashboardsRepository = require("./dashboards.repository");
+const instanceRepository = require("../instances/instances.repository");
 const reportsRepository = require("../reports/reports.repository");
 const permissionsService = require("../common/permissions.service");
 const { ValidationError, NotFoundError, ForbiddenError } = require("../common/exception");
+const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
+const { db } = require("../../database");
+const { accountsInstances, accountsInstancesWorkspaces, instances } = require("../db/schema");
+const { and, eq, isNull } = require("drizzle-orm");
 
-exports.createDashboard = async (dashboardData, userId) => {
-  const { supersetId, embeddedId, name, reportsId } = dashboardData;
+exports.createDashboard = async (dashboardData) => {
+  const { name, reportId, apacheId } = dashboardData;
 
   // Validate required fields
-  if (!supersetId || !name || !reportsId) {
-    throw new ValidationError("supersetId, name, and reportsId are required");
+  if (!reportId || !name || !apacheId) {
+    throw new ValidationError("reportId, name, and apacheId are required");
   }
 
   // Validate report exists and is active
-  const report = await reportsRepository.findById(reportsId);
+  const report = await reportsRepository.findById(reportId);
   if (!report) {
     throw new NotFoundError("Report not found");
   }
+
+  const [supersetId, apacheDashboardId] = apacheId.split("-");
 
   // Check if dashboard with same supersetId already exists
   const existing = await dashboardsRepository.findBySupersetId(supersetId);
@@ -23,16 +30,29 @@ exports.createDashboard = async (dashboardData, userId) => {
     throw new ValidationError(`Dashboard with supersetId ${supersetId} already exists`);
   }
 
-  // Create dashboard
-  const result = await dashboardsRepository.createDashboard({
-    supersetId,
-    embeddedId: embeddedId || null,
-    name,
-    reportsId,
-    active: true,
-  });
+  const instance = await instanceRepository.findById(supersetId);
+  if (!instance) {
+    throw new ValidationError(`This instances doenst exists`);
+  }
 
-  return await dashboardsRepository.findById(result.insertId || result[0]?.insertId);
+  const client = createApacheSuperSetClient(instance);
+  const { uuid } = await client.enableEmbeddedDashboard(apacheDashboardId);
+
+  if (uuid) {
+    // Create dashboard
+
+    const result = await dashboardsRepository.createDashboard({
+      supersetId: supersetId,
+      embeddedId: uuid,
+      name,
+      reportId,
+      active: true,
+    });
+
+    return await dashboardsRepository.findById(result.insertId || result[0]?.insertId);
+  }
+
+  throw new Error("Problem with Apache getting embedded id");
 };
 
 exports.updateDashboard = async (id, updateData, userId) => {
@@ -49,9 +69,9 @@ exports.updateDashboard = async (id, updateData, userId) => {
     }
   }
 
-  // Validate reportsId if provided
-  if (updateData.reportsId) {
-    const report = await reportsRepository.findById(updateData.reportsId);
+  // Validate reportId if provided
+  if (updateData.reportId) {
+    const report = await reportsRepository.findById(updateData.reportId);
     if (!report) {
       throw new NotFoundError("Report not found");
     }
@@ -91,8 +111,8 @@ exports.getAllDashboards = async (options = {}, userId) => {
   // Apply additional filters if provided
   let filtered = accessibleDashboards;
 
-  if (options.reportsId) {
-    filtered = filtered.filter((d) => d.reportsId === parseInt(options.reportsId));
+  if (options.reportId) {
+    filtered = filtered.filter((d) => d.reportId === parseInt(options.reportId));
   }
 
   if (options.active !== undefined) {
@@ -117,6 +137,90 @@ exports.getDashboardsForSelect = async () => {
   } catch (error) {
     return [];
   }
+};
+
+exports.getDashboardsInstancesForSelect = async ({ reportId }) => {
+  if (!reportId) {
+    throw new ValidationError("reportId is required");
+  }
+
+  const report = await reportsRepository.findById(reportId);
+  if (!report) {
+    throw new NotFoundError("Report not found");
+  }
+
+  const workspaceId = report.workspacesId;
+
+  const rows = await db
+    .select({
+      instanceId: instances.id,
+      instanceName: instances.name,
+      baseUrl: instances.baseUrl,
+      apiUserName: instances.apiUserName,
+      apiPassword: instances.apiPassword,
+    })
+    .from(accountsInstancesWorkspaces)
+    .innerJoin(
+      accountsInstances,
+      and(
+        eq(accountsInstancesWorkspaces.idAccountsInstances, accountsInstances.id),
+        eq(accountsInstances.active, true),
+        isNull(accountsInstances.deletedAt)
+      )
+    )
+    .innerJoin(
+      instances,
+      and(eq(accountsInstances.instancesId, instances.id), eq(instances.active, true), isNull(instances.deletedAt))
+    )
+    .where(
+      and(
+        eq(accountsInstancesWorkspaces.idWorkspaces, workspaceId),
+        eq(accountsInstancesWorkspaces.active, true),
+        isNull(accountsInstancesWorkspaces.deletedAt)
+      )
+    );
+
+  // Deduplicate instances by id
+  const instancesById = new Map();
+  rows.forEach((row) => {
+    if (!instancesById.has(row.instanceId)) {
+      instancesById.set(row.instanceId, row);
+    }
+  });
+
+  const options = [];
+
+  for (const row of instancesById.values()) {
+    try {
+      const client = createApacheSuperSetClient({
+        baseUrl: row.baseUrl,
+        apiUserName: row.apiUserName,
+        apiPassword: row.apiPassword,
+      });
+
+      const dashboardsResponse = await client.listDashboards();
+      const supersetDashboards = Array.isArray(dashboardsResponse?.result)
+        ? dashboardsResponse.result
+        : Array.isArray(dashboardsResponse)
+        ? dashboardsResponse
+        : [];
+
+      supersetDashboards.forEach((d) => {
+        const supersetDashboardId = d.id;
+        const dashboardTitle = d.dashboard_title || d.dashboardTitle || d.slug || `Dashboard ${supersetDashboardId}`;
+
+        options.push({
+          value: `${row.instanceId}-${supersetDashboardId}`,
+          label: `${row.instanceName} - ${dashboardTitle}`,
+        });
+      });
+    } catch (error) {
+      // If one instance fails, log and continue with others
+      console.error("Error listing dashboards for instance", row.instanceId, error.message);
+    }
+  }
+
+  return options;
 };
 
 exports.getDashboardCount = async (options = {}, userId) => {
@@ -225,53 +329,16 @@ exports.getDashboardUsers = async (dashboardId, requestingUserId) => {
 };
 
 exports.getDashboardEmbedInfo = async (dashboardId, userId) => {
-  // Validate access using permissions service
   const hasAccess = await permissionsService.validateUserDashboardAccess(userId, dashboardId);
   if (!hasAccess) {
     throw new ForbiddenError("You do not have access to this dashboard");
   }
 
-  // Get dashboard with full chain information
-  const { db } = require("../../database");
-  const { sql } = require("drizzle-orm");
+  const info = await dashboardsRepository.getDashboardEmbedInfo(dashboardId);
 
-  const [rows] = await db.execute(sql`
-    SELECT
-      d.id,
-      d.superset_id as supersetId,
-      d.embedded_id as embeddedId,
-      d.name,
-      d.reports_id as reportsId,
-      r.name as reportName,
-      r.workspaces_id as workspacesId,
-      w.name as workspaceName,
-      i.id as intanceId,
-      i.name as intanceName,
-      i.base_url as baseUrl,
-      i.api_user_name as apiUserName,
-      d.active,
-      d.created_at as createdAt,
-      d.updated_at as updatedAt
-    FROM dashboards d
-    INNER JOIN reports r ON r.id = d.reports_id
-    INNER JOIN workspaces w ON w.id = r.workspaces_id
-    INNER JOIN accounts_instances_workspaces aiw ON aiw.id_workspaces = w.id
-      AND aiw.active = 1 AND aiw.deleted_at IS NULL
-    INNER JOIN accounts_instances ai ON ai.id = aiw.id_accounts_instances
-      AND ai.active = 1 AND ai.deleted_at IS NULL
-    INNER JOIN instances i ON i.id = ai.instances_id
-      AND i.active = 1 AND i.deleted_at IS NULL
-    INNER JOIN users u ON u.accounts_id = ai.accounts_id
-      AND u.active = 1 AND u.deleted_at IS NULL
-    WHERE d.id = ${dashboardId}
-      AND u.id = ${userId}
-      AND d.active = 1 AND d.deleted_at IS NULL
-    LIMIT 1
-  `);
-
-  if (!rows || rows.length === 0) {
+  if (!info) {
     throw new NotFoundError("Dashboard not found or not accessible");
   }
 
-  return rows[0];
+  return info;
 };

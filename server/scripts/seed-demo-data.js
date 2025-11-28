@@ -278,7 +278,7 @@ async function seedReportsAndDashboards(workspacesMap) {
       // Crear dashboards del report
       for (const dashboardDef of reportDef.dashboards) {
         const dashboardId = await ensureDashboard({
-          reportsId: reportId,
+          reportId: reportId,
           supersetId: dashboardDef.supersetId,
           embeddedId: dashboardDef.embeddedId,
           name: dashboardDef.name,

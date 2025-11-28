@@ -2,8 +2,7 @@ import React, { useEffect, useMemo } from "react";
 import { Grid, Paper, Button, Typography } from "@mui/material";
 import useForm from "../../hooks/useForm";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
-import { createDashboard, updateDashboard } from "../../state/dashboards/dashboardsActions";
-import { readReportsByAdmin } from "../../state/reports/reportsActions";
+import { createDashboard, getDashboardsInstancesLists, getReportsLists, updateDashboard } from "../../state/dashboards/dashboardsActions";
 import { useParams, useNavigate } from "react-router-dom";
 import useToggle from "../../hooks/useToggle";
 import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
@@ -19,18 +18,15 @@ const ManageDashboard = () => {
   const { isSuperuser } = useSuperuser();
   const { isAdmin } = useAdmin();
 
-  const { dashboards, loading } = useSelector(({ dashboards }) => dashboards, shallowEqual);
-  const { reports, loading: loadingReports } = useSelector(({ reports }) => reports, shallowEqual);
+  const { dashboards, loading, reportsList, dashboardsInstancesList } = useSelector(({ dashboards }) => dashboards, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
   const accountId = useMemo(() => user?.accountId || null, [user]);
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
   const initialState = {
     name: "",
-    reportsId: "",
-    supersetId: "",
-    embeddedId: "",
-    description: "",
+    reportId: "",
+    apacheId: "",
   };
 
   let thisDashboard = undefined;
@@ -40,15 +36,6 @@ const ManageDashboard = () => {
   if (dashboardId) {
     thisDashboard = dashboards.find((dashboard) => dashboard.id === parseInt(dashboardId));
   }
-
-  // Cargar reports filtrados por account si es admin
-  useEffect(() => {
-    const reportFilters = {};
-    if (isAdmin && accountId) {
-      reportFilters.accountId = accountId;
-    }
-    dispatch(readReportsByAdmin(reportFilters));
-  }, [dispatch, isAdmin, accountId]);
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/dashboards`);
 
@@ -63,6 +50,21 @@ const ManageDashboard = () => {
 
     buttonHasBeenClicked();
   };
+
+  // Cargar reports filtrados por account si es admin
+  useEffect(() => {
+    const reportFilters = {};
+    if (isAdmin && accountId) {
+      reportFilters.accountId = accountId;
+    }
+    dispatch(getReportsLists(reportFilters));
+  }, [dispatch, isAdmin, accountId]);
+
+  useEffect(() => {
+    if (dashboard?.reportId && dashboard?.reportId !== "") {
+      dispatch(getDashboardsInstancesLists(dashboard));
+    }
+  }, [dashboard, dispatch]);
 
   if (loading && dashboardId && !thisDashboard) {
     return (
@@ -92,10 +94,12 @@ const ManageDashboard = () => {
         bindField={bindField}
         active={active}
         handleSwitchChange={handleSwitchChange}
-        reports={reports}
-        loadingReports={loadingReports}
+        reports={reportsList}
+        dashboards={dashboardsInstancesList}
+        loadingReports={loading}
         isSuperuser={isSuperuser}
         isAdmin={isAdmin}
+        reportId={dashboard?.reportId}
       />
 
       <Grid mt={3} container justifyContent="space-between">

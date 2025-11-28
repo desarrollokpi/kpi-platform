@@ -31,7 +31,7 @@ CREATE TABLE `dashboards` (
 	`supersetId` int NOT NULL,
 	`embeddedId` varchar(64),
 	`name` varchar(100) NOT NULL,
-	`reportsId` int NOT NULL,
+	`reportId` int NOT NULL,
 	`active` boolean NOT NULL DEFAULT true,
 	`deletedAt` datetime,
 	`createdAt` datetime NOT NULL DEFAULT now(),
@@ -149,7 +149,7 @@ CREATE TABLE `reports` (
 );
 --> statement-breakpoint
 ALTER TABLE `accountContract` ADD CONSTRAINT `accountContract_idAccounts_accounts_id_fk` FOREIGN KEY (`idAccounts`) REFERENCES `accounts`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `dashboards` ADD CONSTRAINT `dashboards_reportsId_reports_id_fk` FOREIGN KEY (`reportsId`) REFERENCES `reports`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `dashboards` ADD CONSTRAINT `dashboards_reportId_reports_id_fk` FOREIGN KEY (`reportId`) REFERENCES `reports`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `usersDashboards` ADD CONSTRAINT `usersDashboards_idUsers_users_id_fk` FOREIGN KEY (`idUsers`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `usersDashboards` ADD CONSTRAINT `usersDashboards_dashboardsId_dashboards_id_fk` FOREIGN KEY (`dashboardsId`) REFERENCES `dashboards`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `users` ADD CONSTRAINT `users_accountsId_accounts_id_fk` FOREIGN KEY (`accountsId`) REFERENCES `accounts`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -160,7 +160,7 @@ ALTER TABLE `accountsInstances` ADD CONSTRAINT `accountsInstances_instancesId_in
 ALTER TABLE `accountsInstancesWorkspaces` ADD CONSTRAINT `aiwAiFK` FOREIGN KEY (`idAccountsInstances`) REFERENCES `accountsInstances`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `accountsInstancesWorkspaces` ADD CONSTRAINT `aiwWsFK` FOREIGN KEY (`idWorkspaces`) REFERENCES `workspaces`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `reports` ADD CONSTRAINT `reports_workspacesId_workspaces_id_fk` FOREIGN KEY (`workspacesId`) REFERENCES `workspaces`(`id`) ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX `dashboardsReportIdx` ON `dashboards` (`reportsId`);--> statement-breakpoint
+CREATE INDEX `dashboardsReportIdx` ON `dashboards` (`reportId`);--> statement-breakpoint
 CREATE INDEX `dashboardsActiveIdx` ON `dashboards` (`active`);--> statement-breakpoint
 CREATE INDEX `dashboardsSupersetIdx` ON `dashboards` (`supersetId`);--> statement-breakpoint
 CREATE INDEX `udUserIdx` ON `usersDashboards` (`idUsers`);--> statement-breakpoint
