@@ -8,16 +8,24 @@ import FolderIcon from "@mui/icons-material/Folder";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { getAllWorkspaces, activateWorkspace, deactivateWorkspace, deleteWorkspace } from "../../state/workspaces/workspacesActions";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const WorkspacesList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    const parsed = pageParam ? parseInt(pageParam, 10) : 0;
+    return Number.isNaN(parsed) ? 0 : parsed;
+  });
+  const [rowsPerPage, setRowsPerPage] = useState(() => {
+    const rppParam = searchParams.get("rowsPerPage");
+    const parsed = rppParam ? parseInt(rppParam, 10) : 10;
+    return Number.isNaN(parsed) ? 10 : parsed;
+  });
+  const [showOnlyActive, setShowOnlyActive] = useState(() => searchParams.get("active") === "true");
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { workspaces, loading, totalCount } = useSelector(({ workspaces }) => workspaces, shallowEqual);
@@ -76,6 +84,16 @@ const WorkspacesList = () => {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("rowsPerPage", String(rowsPerPage));
+    if (showOnlyActive) {
+      params.set("active", "true");
+    }
+    setSearchParams(params, { replace: true });
+  }, [page, rowsPerPage, showOnlyActive, setSearchParams]);
+
+  useEffect(() => {
     const activeFilter = showOnlyActive ? true : undefined;
 
     dispatch(
@@ -86,7 +104,7 @@ const WorkspacesList = () => {
         accountId: user?.accountId || null,
       })
     );
-  }, [dispatch, showOnlyActive, page, rowsPerPage, location.key, user]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, user]);
 
   if (loading && workspaces.length === 0) {
     return <CircularLoading />;

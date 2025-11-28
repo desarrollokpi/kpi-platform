@@ -34,12 +34,23 @@ const ManageDashboard = () => {
   const { dashboardId } = useParams();
 
   if (dashboardId) {
-    thisDashboard = dashboards.find((dashboard) => dashboard.id === parseInt(dashboardId));
+    thisDashboard = dashboards.find((dashboard) => dashboard.id === parseInt(dashboardId, 10));
   }
 
-  const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/dashboards`);
+  const buttonHasBeenClicked = useNavigateAfterAction(loading, -1);
 
-  const [dashboard, bindField, areFieldsEmpty] = useForm(dashboardId ? thisDashboard : initialState);
+  const initialFormState = dashboardId && thisDashboard
+    ? {
+        ...thisDashboard,
+        // Rebuild apacheId from stored supersetId and supersetDashboardId for edit mode
+        apacheId:
+          thisDashboard.supersetId && thisDashboard.supersetDashboardId
+            ? `${thisDashboard.supersetId}-${thisDashboard.supersetDashboardId}`
+            : "",
+      }
+    : initialState;
+
+  const [dashboard, bindField, areFieldsEmpty] = useForm(initialFormState);
 
   const [active, handleSwitchChange] = useToggle(dashboardId ? thisDashboard?.active : true);
 
@@ -103,7 +114,7 @@ const ManageDashboard = () => {
       />
 
       <Grid mt={3} container justifyContent="space-between">
-        <Button onClick={() => navigate(`/${prefixRoute}/dashboards`)}>Cancelar</Button>
+        <Button onClick={() => navigate(-1)}>Cancelar</Button>
         <LoadingButton onClick={handleManageDashboard} variant="contained" loading={loading} disabled={areFieldsEmpty}>
           {dashboardId ? "Guardar cambios" : "Crear dashboard"}
         </LoadingButton>

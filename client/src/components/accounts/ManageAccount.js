@@ -87,7 +87,13 @@ const ManageAccount = () => {
 
   return (
     <Paper className="container">
-      <ManageAccountForm accountId={accountId} bindField={bindField} active={active} handleSwitchChange={handleSwitchChange} />
+      <ManageAccountForm
+        accountId={accountId}
+        bindField={bindField}
+        active={active}
+        handleSwitchChange={handleSwitchChange}
+        logoAddress={account.logoAddress}
+      />
 
       <Grid mt={3} container justifyContent="space-between">
         <Button onClick={() => navigate(`/${prefixRoute}/accounts`)}>Cancelar</Button>

@@ -36,6 +36,7 @@ const queryDashboardsByAccount = async (accountId, options = {}) => {
       embeddedId: dashboardsTable.embeddedId,
       name: dashboardsTable.name,
       reportId: dashboardsTable.reportId,
+      reportName: reportsTable.name,
       active: dashboardsTable.active,
       createdAt: dashboardsTable.createdAt,
       updatedAt: dashboardsTable.updatedAt,
@@ -93,7 +94,13 @@ exports.createDashboard = async (dashboardData) => {
     throw new NotFoundError("Report not found");
   }
 
-  const [supersetId, apacheDashboardId] = apacheId.split("-");
+  const [supersetIdPart, apacheDashboardIdPart] = apacheId.split("-");
+  const supersetId = parseInt(supersetIdPart, 10);
+  const supersetDashboardId = parseInt(apacheDashboardIdPart, 10);
+
+  if (Number.isNaN(supersetId) || Number.isNaN(supersetDashboardId)) {
+    throw new ValidationError("apacheId must be in the format '<instanceId>-<dashboardId>'");
+  }
 
   const instance = await instanceRepository.findById(supersetId);
   if (!instance) {
@@ -107,7 +114,8 @@ exports.createDashboard = async (dashboardData) => {
     // Create dashboard
 
     const result = await dashboardsRepository.createDashboard({
-      supersetId: supersetId,
+      supersetId,
+      supersetDashboardId,
       embeddedId: uuid,
       name,
       reportId,
@@ -164,7 +172,7 @@ exports.getDashboardById = async (id, userId) => {
 exports.getAllDashboards = async (options = {}, userId) => {
   const { accountId } = options;
 
-  // If accountId is provided, always filter dashboards by that tenant (used by superusers/admins views)
+  // If accountId is provided, always filter dashboards by that tenant (used by tenant admins views)
   if (accountId !== undefined) {
     return await queryDashboardsByAccount(accountId, options);
   }
@@ -172,8 +180,32 @@ exports.getAllDashboards = async (options = {}, userId) => {
   const isRootAdmin = await permissionsService.isRootAdmin(userId);
 
   if (isRootAdmin) {
-    // Root Admin without account filter: use generic repository
-    return await dashboardsRepository.findAll(options);
+    // Root Admin without account filter: global dashboards using permissions service metadata
+    const dashboardRows = await permissionsService.getUserAccessibleDashboards(userId);
+
+    // Apply optional filters
+    let filtered = dashboardRows;
+
+    if (options.reportId) {
+      const reportFilter = parseInt(options.reportId, 10);
+      filtered = filtered.filter((d) => d.reportsId === reportFilter || d.reportId === reportFilter);
+    }
+
+    if (options.active !== undefined) {
+      const activeValue = options.active === true || options.active === "true";
+      filtered = filtered.filter((d) => d.active === activeValue);
+    }
+
+    // Apply pagination
+    if (options.offset !== undefined) {
+      filtered = filtered.slice(parseInt(options.offset, 10));
+    }
+
+    if (options.limit !== undefined) {
+      filtered = filtered.slice(0, parseInt(options.limit, 10));
+    }
+
+    return filtered;
   }
 
   // For Tenant Admins and Users without explicit account filter: Use permissions service (Regla de oro)

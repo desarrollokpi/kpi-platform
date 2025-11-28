@@ -100,6 +100,7 @@ exports.findDashboardsForUser = async (userId, accountsId) => {
     SELECT DISTINCT
       d.id,
       d.superset_id as supersetId,
+      d.superset_dashboard_id as supersetDashboardId,
       d.embedded_id as embeddedId,
       d.name,
       d.reports_id as reportId,

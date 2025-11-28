@@ -90,7 +90,9 @@ export const createDashboard = (dashboardData) => async (dispatch) => {
 export const updateDashboard = (dashboardData) => async (dispatch) => {
   setLoading(dispatch, true);
   try {
-    const { id, ...updateData } = dashboardData;
+    // apacheId is only used on creation to resolve superset instance + Superset dashboard id.
+    // Updates do not change the underlying Superset dashboard association, so we drop apacheId here.
+    const { id, apacheId, ...updateData } = dashboardData;
     const { data } = await axios.put(`/dashboards/${id}`, updateData);
     dispatch({
       type: UPDATE_DASHBOARD,

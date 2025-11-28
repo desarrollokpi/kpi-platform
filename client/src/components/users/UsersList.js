@@ -10,20 +10,28 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { readUsers, activateUser, deactivateUser, deleteUser } from "../../state/users/usersActions";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import useAdmin from "../../hooks/useAdmin";
 import useSuperuser from "../../hooks/useSuperuser";
 
 const UsersList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isSuperuser } = useSuperuser();
   const { isAdmin } = useAdmin();
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    const parsed = pageParam ? parseInt(pageParam, 10) : 0;
+    return Number.isNaN(parsed) ? 0 : parsed;
+  });
+  const [rowsPerPage, setRowsPerPage] = useState(() => {
+    const rppParam = searchParams.get("rowsPerPage");
+    const parsed = rppParam ? parseInt(rppParam, 10) : 10;
+    return Number.isNaN(parsed) ? 10 : parsed;
+  });
+  const [showOnlyActive, setShowOnlyActive] = useState(() => searchParams.get("active") === "true");
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { users, loading, totalCount } = useSelector(({ users }) => users, shallowEqual);
@@ -109,6 +117,16 @@ const UsersList = () => {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("rowsPerPage", String(rowsPerPage));
+    if (showOnlyActive) {
+      params.set("active", "true");
+    }
+    setSearchParams(params, { replace: true });
+  }, [page, rowsPerPage, showOnlyActive, setSearchParams]);
+
+  useEffect(() => {
     const activeFilter = showOnlyActive ? true : undefined;
 
     const filters = {
@@ -123,7 +141,7 @@ const UsersList = () => {
     }
 
     dispatch(readUsers(filters));
-  }, [dispatch, showOnlyActive, page, rowsPerPage, isAdmin, accountsId, location.key]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, isAdmin, accountsId]);
 
   if (loading && users.length === 0) {
     return <CircularLoading />;

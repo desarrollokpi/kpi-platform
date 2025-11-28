@@ -66,6 +66,7 @@ exports.getAllReports = async (options = {}) => {
         id: reportsTable.id,
         workspacesId: reportsTable.workspacesId,
         name: reportsTable.name,
+        workspaceName: workspacesTable.name,
         active: reportsTable.active,
         deletedAt: reportsTable.deletedAt,
         createdAt: reportsTable.createdAt,
@@ -106,7 +107,32 @@ exports.getAllReports = async (options = {}) => {
     return await query;
   }
 
-  return await reportsRepository.findAll(options);
+  // No account filter: global list (used by root admin)
+  const globalReports = await reportsRepository.findAll(options);
+
+  // Enrich with workspaceName for root admin view
+  const workspaceIds = [...new Set(globalReports.map((r) => r.workspacesId).filter(Boolean))];
+  let workspacesMap = new Map();
+
+  if (workspaceIds.length > 0) {
+    const { workspaces } = require("../db/schema");
+    const { inArray } = require("drizzle-orm");
+
+    const rows = await db
+      .select({
+        id: workspaces.id,
+        name: workspaces.name,
+      })
+      .from(workspaces)
+      .where(inArray(workspaces.id, workspaceIds));
+
+    workspacesMap = new Map(rows.map((w) => [w.id, w.name]));
+  }
+
+  return globalReports.map((r) => ({
+    ...r,
+    workspaceName: workspacesMap.get(r.workspacesId) || null,
+  }));
 };
 
 exports.getReportsForSelect = async () => {

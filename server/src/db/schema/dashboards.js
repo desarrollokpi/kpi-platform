@@ -12,6 +12,8 @@ const dashboards = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     supersetId: int("supersetId").notNull(),
+    // Superset dashboard id inside the instance (used to reconstruct apacheId in UI)
+    supersetDashboardId: int("supersetDashboardId"),
     embeddedId: varchar("embeddedId", { length: 64 }),
     name: varchar("name", { length: 100 }).notNull(),
     reportId: int("reportId")

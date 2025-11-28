@@ -7,16 +7,24 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CircularLoading from "@layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { getAccountsLists, activateAccount, deActivateAccount, deleteAccount } from "../../state/accounts/accountsActions";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const AccountsList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    const parsed = pageParam ? parseInt(pageParam, 10) : 0;
+    return Number.isNaN(parsed) ? 0 : parsed;
+  });
+  const [rowsPerPage, setRowsPerPage] = useState(() => {
+    const rppParam = searchParams.get("rowsPerPage");
+    const parsed = rppParam ? parseInt(rppParam, 10) : 10;
+    return Number.isNaN(parsed) ? 10 : parsed;
+  });
+  const [showOnlyActive, setShowOnlyActive] = useState(() => searchParams.get("active") === "true");
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { accounts, loading, totalCount } = useSelector((state) => state.accounts, shallowEqual);
@@ -76,6 +84,17 @@ const AccountsList = () => {
   }, []);
 
   useEffect(() => {
+    // Sync pagination and filter state to query params so the list remembers state when navigating back
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("rowsPerPage", String(rowsPerPage));
+    if (showOnlyActive) {
+      params.set("active", "true");
+    }
+    setSearchParams(params, { replace: true });
+  }, [page, rowsPerPage, showOnlyActive, setSearchParams]);
+
+  useEffect(() => {
     const activeFilter = showOnlyActive ? true : undefined;
 
     dispatch(
@@ -85,7 +104,7 @@ const AccountsList = () => {
         offset: page * rowsPerPage,
       })
     );
-  }, [dispatch, showOnlyActive, page, rowsPerPage, location.key]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage]);
 
   if (loading && accounts.length === 0) {
     return <CircularLoading />;

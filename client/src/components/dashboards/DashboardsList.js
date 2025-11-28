@@ -9,20 +9,28 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { getAllDashboards, activateDashboard, deactivateDashboard, deleteDashboard } from "../../state/dashboards/dashboardsActions";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import useSuperuser from "../../hooks/useSuperuser";
 import useAdmin from "../../hooks/useAdmin";
 
 const DashboardsList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isSuperuser } = useSuperuser();
   const { isAdmin } = useAdmin();
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    const parsed = pageParam ? parseInt(pageParam, 10) : 0;
+    return Number.isNaN(parsed) ? 0 : parsed;
+  });
+  const [rowsPerPage, setRowsPerPage] = useState(() => {
+    const rppParam = searchParams.get("rowsPerPage");
+    const parsed = rppParam ? parseInt(rppParam, 10) : 10;
+    return Number.isNaN(parsed) ? 10 : parsed;
+  });
+  const [showOnlyActive, setShowOnlyActive] = useState(() => searchParams.get("active") === "true");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { dashboards, loading, totalCount } = useSelector(({ dashboards }) => dashboards, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
@@ -48,6 +56,8 @@ const DashboardsList = () => {
   const headers = useMemo(() => {
     const userHeaders = [
       { label: "Nombre", key: "name" },
+      // For root admin and tenant admin show associated report name
+      ...(isSuperuser || isAdmin ? [{ label: "Reporte", key: "reportName", hideOnMobile: true }] : []),
       { label: "Creado", key: "createdAt", type: "date", hideOnMobile: true },
     ];
 
@@ -111,6 +121,16 @@ const DashboardsList = () => {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("rowsPerPage", String(rowsPerPage));
+    if (showOnlyActive) {
+      params.set("active", "true");
+    }
+    setSearchParams(params, { replace: true });
+  }, [page, rowsPerPage, showOnlyActive, setSearchParams]);
+
+  useEffect(() => {
     const activeFilter = showOnlyActive ? true : undefined;
 
     const filters = {
@@ -127,7 +147,7 @@ const DashboardsList = () => {
     }
 
     dispatch(getAllDashboards(filters));
-  }, [dispatch, showOnlyActive, page, rowsPerPage, location.key, user, isSuperuser, isAdmin]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, user, isSuperuser, isAdmin]);
 
   if (loading && dashboards.length === 0) {
     return <CircularLoading />;

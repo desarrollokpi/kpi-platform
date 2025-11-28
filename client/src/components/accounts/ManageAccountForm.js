@@ -1,8 +1,8 @@
 import React from "react";
-import { Typography, Switch, Grid } from "@mui/material";
+import { Typography, Switch, Grid, Box } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageAccountForm = ({ accountId, bindField, active, handleSwitchChange }) => {
+const ManageAccountForm = ({ accountId, bindField, active, handleSwitchChange, logoAddress }) => {
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -42,9 +42,31 @@ const ManageAccountForm = ({ accountId, bindField, active, handleSwitchChange })
           />
         </FormField>
 
-        <FormField label="Logo (URL)">
-          <FormField.TextField {...bindField("logoAddress")} placeholder="https://ejemplo.com/logo.png" helperText="URL del logo de la empresa (opcional)" />
+        <FormField label="Logo (URL pública)">
+          <FormField.TextField
+            {...bindField("logoAddress")}
+            placeholder="https://empresa.com/logo.png"
+            helperText="URL pública del logo de la empresa (opcional). Debe ser accesible sin autenticación."
+          />
         </FormField>
+
+        <Box mt={1} mb={2}>
+          <Typography variant="caption" color="textSecondary">
+            Vista previa del logo:
+          </Typography>
+          <Box mt={1} sx={{ border: "1px solid #eee", borderRadius: 1, p: 1, display: "inline-block" }}>
+            <img
+              src={logoAddress && /^https?:\/\//.test(logoAddress) ? logoAddress : "/fallback-logo.png"}
+              alt="Account logo preview"
+              style={{ maxHeight: 48, maxWidth: 200, objectFit: "contain" }}
+              onError={(e) => {
+                if (e.target.src.indexOf("/fallback-logo.png") === -1) {
+                  e.target.src = "/fallback-logo.png";
+                }
+              }}
+            />
+          </Box>
+        </Box>
 
         <FormField label="Cuenta Activa" mt={2}>
           <Switch checked={active} onChange={handleSwitchChange} />

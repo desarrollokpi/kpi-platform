@@ -17,6 +17,7 @@ const ChangeUserPasswordByUser = () => {
   const { user } = useSelector((state) => state.auth);
   const { loading } = useSelector((state) => state.users);
 
+  // This page is only rendered under users routes, so redirect path is fixed.
   const buttonHasBeenClicked = useNavigateAfterAction(loading, "/users/dashboards");
 
   const [error, toggleError] = useToggle(false);
