@@ -8,6 +8,7 @@ exports.getAllRoles = async () => {
 exports.getRolesForSelect = async () => {
   let roles = await repository.getRolesForSelect();
   for (const role of roles) {
+    role.labelRaw = role.label;
     role.label = ROLE_NAMES_LABELS[role.label];
   }
   return roles;

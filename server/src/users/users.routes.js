@@ -15,6 +15,7 @@ router.get("/account/:accountId", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TE
 router.get("/:id", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), usersController.getUserById);
 router.put("/:id", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), usersController.updateUser);
 router.put("/:id/password", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), usersController.changePassword);
+router.post("/:id/assignDashboards", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), usersController.assignDashboardsToUser);
 router.post("/:id/activate", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), usersController.activateUser);
 router.post("/:id/deactivate", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), usersController.deactivateUser);
 router.delete("/:id", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), usersController.deleteUser);

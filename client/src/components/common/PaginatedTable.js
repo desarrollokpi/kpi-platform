@@ -102,18 +102,20 @@ const DefaultRow = ({ item, headersConfig, actions }) => (
     {actions && actions.length > 0 && (
       <TableCell align="center">
         <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
-          {actions.map((action, actionIndex) => (
-            <IconButton
-              key={actionIndex}
-              onClick={() => action.onClick(item)}
-              disabled={action.disabled ? action.disabled(item) : false}
-              color={action.color || "default"}
-              size="small"
-              title={action.tooltip || ""}
-            >
-              {action.icon}
-            </IconButton>
-          ))}
+          {actions
+            .filter((action) => (typeof action.hidden === "function" ? !action.hidden(item) : true))
+            .map((action, actionIndex) => (
+              <IconButton
+                key={actionIndex}
+                onClick={() => action.onClick(item)}
+                disabled={action.disabled ? action.disabled(item) : false}
+                color={action.color || "default"}
+                size="small"
+                title={action.tooltip || ""}
+              >
+                {action.icon}
+              </IconButton>
+            ))}
         </Box>
       </TableCell>
     )}

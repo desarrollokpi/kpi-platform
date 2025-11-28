@@ -182,6 +182,24 @@ export const getDashboardsByUser = (userId) => async (dispatch) => {
   }
 };
 
+export const getDashboardsAssignableForUser = (userId) => async (dispatch) => {
+  setLoading(dispatch, true);
+  try {
+    const { data } = await axios.get(`/dashboards/assignableForUser/${userId}`);
+    dispatch({
+      type: GET_ALL_DASHBOARDS,
+      payload: data,
+    });
+  } catch (error) {
+    dispatch({
+      type: ERROR,
+      payload: extractErrorMessage(error),
+    });
+  } finally {
+    setLoading(dispatch, false);
+  }
+};
+
 // Get dashboard embed info
 export const getDashboardEmbedInfo = (dashboardId) => async (dispatch) => {
   setLoading(dispatch, true);

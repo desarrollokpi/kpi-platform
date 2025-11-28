@@ -1,44 +1,82 @@
 import React, { useEffect, useMemo } from "react";
 import { Grid, Paper, Button, Typography } from "@mui/material";
-import useForm from "../../hooks/useForm";
+import LoadingButton from "@mui/lab/LoadingButton";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
-import { createInstance, getAccountsLists, updateInstance } from "../../state/instances/instancesActions";
 import { useParams, useNavigate } from "react-router-dom";
+
+import useForm from "../../hooks/useForm";
 import useToggle from "../../hooks/useToggle";
 import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
 import useSuperuser from "../../hooks/useSuperuser";
-import LoadingButton from "@mui/lab/LoadingButton";
+
+import { createInstance, getAccountsLists, updateInstance } from "../../state/instances/instancesActions";
+
 import ManageInstanceForm from "./ManageInstanceForm";
 import CircularLoading from "../layout/CircularLoading";
 
 const ManageInstance = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isSuperuser } = useSuperuser();
   const { instanceId } = useParams();
+  const { isSuperuser } = useSuperuser();
 
-  const { instances, accountsList, loading } = useSelector(({ instances }) => instances);
+  const { instances, accountsList, loading } = useSelector(({ instances }) => instances, shallowEqual);
+
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
-  const accountId = useMemo(() => user?.accountId || null, [user]);
+
+  const accountId = useMemo(() => user?.accountId ?? null, [user]);
+
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
-  const initialState = {
-    name: "",
-    baseUrl: "",
-    apiUserName: "",
-    apiPassword: "",
-    accountId: accountId || "",
-  };
+  const initialState = useMemo(
+    () => ({
+      name: "",
+      baseUrl: "",
+      apiUserName: "",
+      apiPassword: "",
+      accountsId: accountId ? [accountId] : [],
+    }),
+    [accountId]
+  );
 
-  let thisInstance = undefined;
+  const thisInstance = useMemo(() => {
+    if (!instanceId) return undefined;
 
-  if (instanceId) {
-    thisInstance = instances.find((instance) => instance.id === parseInt(instanceId));
-  }
+    const id = Number.parseInt(instanceId, 10);
+    if (Number.isNaN(id)) return undefined;
+
+    const found = instances.find((instance) => instance.id === id);
+    if (!found) return undefined;
+
+    const rawAccounts = Array.isArray(found.accountsId) ? found.accountsId : [];
+
+    const accounts = rawAccounts
+      .filter(Boolean)
+      .map((accountValue) => {
+        const match = accountsList?.find(({ value }) => value === accountValue);
+        return match?.label ?? null;
+      })
+      .filter((label) => label !== null);
+
+    return {
+      name: found.name,
+      baseUrl: found.baseUrl,
+      apiUserName: found.apiUserName,
+      apiPassword: found.apiPassword,
+      accountsId: accounts,
+      active: found.active,
+    };
+  }, [instanceId, instances, accountsList]);
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/instances`);
 
-  const [instance, bindField, areFieldsEmpty] = useForm(instanceId ? thisInstance : initialState);
+  const [instance, bindField, areFieldsEmpty, setFields] = useForm(initialState);
+
+  useEffect(() => {
+    if (instanceId && thisInstance) {
+      setFields(thisInstance);
+    }
+  }, [instanceId, thisInstance, setFields]);
 
   const [active, handleSwitchChange] = useToggle(instanceId ? thisInstance?.active : true);
 
@@ -48,7 +86,6 @@ const ManageInstance = () => {
     }
   }, [dispatch, isSuperuser]);
 
-  // Solo los superusers pueden gestionar instances
   if (!isSuperuser) {
     return (
       <Paper className="container">
@@ -63,10 +100,25 @@ const ManageInstance = () => {
   }
 
   const handleManageInstance = () => {
-    const instanceData = { ...instance, active };
+    const accountsId = Array.isArray(instance.accountsId)
+      ? instance.accountsId
+          .filter(Boolean)
+          .map((accountLabel) => {
+            const match = accountsList?.find(({ label }) => label === accountLabel);
+            return match?.value ?? null;
+          })
+          .filter((id) => id !== null)
+      : [];
 
-    dispatch(instanceId ? updateInstance(instanceData) : createInstance(instanceData));
+    const instanceData = {
+      ...instance,
+      accountsId,
+      active,
+    };
 
+    const action = instanceId ? updateInstance(instanceId, instanceData) : createInstance(instanceData);
+
+    dispatch(action);
     buttonHasBeenClicked();
   };
 
@@ -100,6 +152,7 @@ const ManageInstance = () => {
         active={active}
         handleSwitchChange={handleSwitchChange}
         isSuperuser={isSuperuser}
+        accountsId={instance?.accountsId || []}
       />
 
       <Grid mt={3} container justifyContent="space-between">

@@ -7,11 +7,12 @@ import EditIcon from "@mui/icons-material/Edit";
 import CircularLoading from "@layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { getAccountsLists, activateAccount, deActivateAccount } from "../../state/accounts/accountsActions";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const AccountsList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -72,7 +73,7 @@ const AccountsList = () => {
         offset: page * rowsPerPage,
       })
     );
-  }, [dispatch, showOnlyActive, page, rowsPerPage]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, location.key]);
 
   if (loading && accounts.length === 0) {
     return <CircularLoading />;

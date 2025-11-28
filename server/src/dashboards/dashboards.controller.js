@@ -21,7 +21,7 @@ exports.getAllDashboards = async (req, res, next) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const { active, limit, offset, reportId } = req.query;
+    const { active, limit, offset, reportId, accountId } = req.query;
 
     const options = {};
 
@@ -37,11 +37,14 @@ exports.getAllDashboards = async (req, res, next) => {
     if (reportId) {
       options.reportId = parseInt(reportId);
     }
+    if (accountId) {
+      options.accountId = parseInt(accountId);
+    }
 
     const dashboards = await dashboardsServices.getAllDashboards(options, userId);
 
-    // Get total count for pagination
-    const totalCount = limit || offset ? await dashboardsServices.getDashboardCount({}, userId) : dashboards.length;
+    // Get total count for pagination (respect filters)
+    const totalCount = limit || offset ? await dashboardsServices.getDashboardCount(options, userId) : dashboards.length;
 
     res.json({
       dashboards,
@@ -212,6 +215,26 @@ exports.getDashboardUsers = async (req, res, next) => {
     const users = await dashboardsServices.getDashboardUsers(parseInt(id), userId);
 
     res.json({ users, count: users.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getDashboardsAssignableToUser = async (req, res, next) => {
+  try {
+    const adminUserId = req.userId;
+    if (!adminUserId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { userId } = req.params;
+    const dashboards = await dashboardsServices.getDashboardsAssignableToUser(parseInt(userId), adminUserId);
+
+    res.json({
+      dashboards,
+      count: dashboards.length,
+      totalCount: dashboards.length,
+    });
   } catch (error) {
     next(error);
   }

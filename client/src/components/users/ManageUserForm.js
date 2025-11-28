@@ -2,7 +2,11 @@ import React from "react";
 import { Typography, Switch, Grid, Alert } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageUserForm = ({ userId, roleId, bindField, active, handleSwitchChange, isSuperuser, accounts, roles }) => {
+const ManageUserForm = ({ userId, bindField, active, handleSwitchChange, isSuperuser, accounts, roles }) => {
+  const roleField = bindField("roleId");
+  const selectedRole = roles?.find((role) => String(role.value) === String(roleField.value));
+  const isRootRole = selectedRole && /root/i.test(String(selectedRole.labelRaw || selectedRole.label || ""));
+
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -17,7 +21,7 @@ const ManageUserForm = ({ userId, roleId, bindField, active, handleSwitchChange,
         </FormField>
 
         <FormField label="Nombre de Usuario" required>
-          <FormField.TextField {...bindField("username")} placeholder="Ej: jperez" helperText="Nombre de usuario para iniciar sesión" />
+          <FormField.TextField {...bindField("userName")} placeholder="Ej: jperez" helperText="Nombre de usuario para iniciar sesión" />
         </FormField>
 
         <FormField label="Correo Electrónico" required>
@@ -28,16 +32,14 @@ const ManageUserForm = ({ userId, roleId, bindField, active, handleSwitchChange,
           <FormField.TextField {...bindField("confirmMail")} type="email" placeholder="usuario@ejemplo.com" helperText="Confirma el correo electrónico" />
         </FormField>
 
-        {isSuperuser && (
-          <>
-            <FormField label="Rol para el usuario" required>
-              <FormField.Select {...bindField("roleId")} options={roles} optionValue="value" display="label" />
-            </FormField>
+        <FormField label="Rol para el usuario" required>
+          <FormField.Select {...roleField} options={roles} optionValue="value" display="label" />
+        </FormField>
 
-            <FormField label="Cuenta Asociada">
-              <FormField.Select {...bindField("accountId")} options={accounts} optionValue="value" display="label" />
-            </FormField>
-          </>
+        {isSuperuser && !isRootRole && (
+          <FormField label="Cuenta Asociada">
+            <FormField.Select {...bindField("accountId")} options={accounts} optionValue="value" display="label" />
+          </FormField>
         )}
 
         {!userId && (

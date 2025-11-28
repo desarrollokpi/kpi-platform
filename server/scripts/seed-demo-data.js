@@ -237,63 +237,6 @@ async function seedInstances() {
   return map;
 }
 
-async function seedWorkspaces() {
-  console.log("➤ Creating workspaces...");
-  const map = new Map();
-
-  for (const workspace of WORKSPACES_DEFINITIONS) {
-    const id = await ensureWorkspace({
-      name: workspace.name,
-      active: true,
-    });
-    map.set(workspace.name, id);
-  }
-
-  logger.success(`Created/verified ${map.size} workspaces`);
-  return map;
-}
-
-async function seedReportsAndDashboards(workspacesMap) {
-  console.log("➤ Creating reports and dashboards...");
-  const reportsMap = new Map();
-  const dashboardsMap = new Map();
-
-  for (const workspaceData of REPORTS_AND_DASHBOARDS) {
-    const workspaceId = workspacesMap.get(workspaceData.workspaceName);
-    if (!workspaceId) {
-      logger.warning(`Workspace '${workspaceData.workspaceName}' not found, skipping...`);
-      continue;
-    }
-
-    for (const reportDef of workspaceData.reports) {
-      // Crear report
-      const reportId = await ensureReport({
-        workspacesId: workspaceId,
-        name: reportDef.name,
-        active: true,
-      });
-
-      reportsMap.set(reportDef.name, reportId);
-
-      // Crear dashboards del report
-      for (const dashboardDef of reportDef.dashboards) {
-        const dashboardId = await ensureDashboard({
-          reportId: reportId,
-          supersetId: dashboardDef.supersetId,
-          embeddedId: dashboardDef.embeddedId,
-          name: dashboardDef.name,
-          active: true,
-        });
-
-        dashboardsMap.set(dashboardDef.name, dashboardId);
-      }
-    }
-  }
-
-  logger.success(`Created/verified ${reportsMap.size} reports and ${dashboardsMap.size} dashboards`);
-  return { reportsMap, dashboardsMap };
-}
-
 async function createTenantUsers(accountId, tenantDef, dashboardsMap) {
   for (const userDef of tenantDef.users) {
     const passwordHash = await hashPassword(userDef.password);
@@ -322,7 +265,7 @@ async function createTenantUsers(accountId, tenantDef, dashboardsMap) {
   }
 }
 
-async function seedAccounts(instancesMap, workspacesMap, dashboardsMap) {
+async function seedAccounts(instancesMap) {
   console.log("➤ Creating demo tenants...");
 
   for (const tenant of TENANT_DEFINITIONS) {
@@ -341,18 +284,49 @@ async function seedAccounts(instancesMap, workspacesMap, dashboardsMap) {
     }
     const accountIntanceId = await ensureAccountIntanceLink(accountId, intanceId);
 
-    // 3. Habilitar workspaces para el account-intance
+    // 3. Create workspaces, reports and dashboards specific to this tenant
+    const dashboardsMapForTenant = new Map();
+
     for (const workspaceName of tenant.workspaces) {
-      const workspaceId = workspacesMap.get(workspaceName);
-      if (!workspaceId) {
-        logger.warning(`Workspace '${workspaceName}' not found; skipping for ${tenant.name}`);
+      const workspaceTemplate = REPORTS_AND_DASHBOARDS.find((w) => w.workspaceName === workspaceName);
+      if (!workspaceTemplate) {
+        logger.warning(`Workspace template '${workspaceName}' not found; skipping for ${tenant.name}`);
         continue;
       }
+
+      // Create workspace with tenant-prefixed name
+      const workspaceId = await ensureWorkspace({
+        name: `${tenant.name} - ${workspaceTemplate.workspaceName}`,
+        active: true,
+      });
+
       await enableWorkspaceForAccountIntance(accountIntanceId, workspaceId);
+
+      // Create reports and dashboards for this tenant+workspace
+      for (const reportDef of workspaceTemplate.reports) {
+        const reportId = await ensureReport({
+          workspacesId: workspaceId,
+          name: `${tenant.name} - ${reportDef.name}`,
+          active: true,
+        });
+
+        for (const dashboardDef of reportDef.dashboards) {
+          const dashboardId = await ensureDashboard({
+            reportId,
+            supersetId: dashboardDef.supersetId,
+            embeddedId: dashboardDef.embeddedId,
+            name: `${tenant.name} - ${dashboardDef.name}`,
+            active: true,
+          });
+
+          // Key by base dashboard name so tenant config can refer to it
+          dashboardsMapForTenant.set(dashboardDef.name, dashboardId);
+        }
+      }
     }
 
-    // 4. Crear usuarios del tenant
-    await createTenantUsers(accountId, tenant, dashboardsMap);
+    // 4. Create tenant users and assign dashboards
+    await createTenantUsers(accountId, tenant, dashboardsMapForTenant);
   }
 
   logger.success(`Created/verified ${TENANT_DEFINITIONS.length} tenants with admins and users`);
@@ -379,9 +353,7 @@ async function main() {
 
     await ensurePrerequisites();
     const instancesMap = await seedInstances();
-    const workspacesMap = await seedWorkspaces();
-    const { reportsMap, dashboardsMap } = await seedReportsAndDashboards(workspacesMap);
-    await seedAccounts(instancesMap, workspacesMap, dashboardsMap);
+    await seedAccounts(instancesMap);
 
     console.log("\n╔══════════════════════════════════════════════╗");
     console.log("║           DEMO SEED COMPLETED ✓              ║");

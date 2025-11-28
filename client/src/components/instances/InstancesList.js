@@ -7,17 +7,19 @@ import StorageIcon from "@mui/icons-material/Storage";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { getAllInstances, activateInstance, deactivateInstance } from "../../state/instances/instancesActions";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const InstancesList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
 
-  const { instances, loading, totalCount } = useSelector((state) => state.instances, shallowEqual);
+  const { instances, loading, totalCount } = useSelector(({ instances }) => instances, shallowEqual);
+  const { user } = useSelector(({ auth }) => auth, shallowEqual);
 
   const toggleActive = useCallback(
     (id, active) => {
@@ -70,9 +72,10 @@ const InstancesList = () => {
         active: activeFilter,
         limit: rowsPerPage,
         offset: page * rowsPerPage,
+        accountId: user?.accountId || null,
       })
     );
-  }, [dispatch, showOnlyActive, page, rowsPerPage]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, location.key, user]);
 
   if (loading && instances.length === 0) {
     return <CircularLoading />;

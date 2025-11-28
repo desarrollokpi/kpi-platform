@@ -33,7 +33,7 @@ exports.getReportById = async (req, res, next) => {
 
 exports.getAllReports = async (req, res, next) => {
   try {
-    const { active, limit, offset, listed = "false" } = req.query;
+    const { active, limit, offset, listed = "false", accountId } = req.query;
 
     if (listed === "true") {
       const list = await reportsServices.getReportsForSelect();
@@ -42,12 +42,13 @@ exports.getAllReports = async (req, res, next) => {
 
     const options = {};
     if (active !== undefined) options.active = active === "true";
-    if (limit) options.limit = parseInt(limit);
-    if (offset) options.offset = parseInt(offset);
+    if (limit) options.limit = parseInt(limit, 10);
+    if (offset) options.offset = parseInt(offset, 10);
+    if (accountId) options.accountId = parseInt(accountId, 10);
 
     const reports = await reportsServices.getAllReports(options);
 
-    const totalCount = limit || offset ? await reportsServices.getReportCount(active === "true") : reports.length;
+    const totalCount = limit || offset ? await reportsServices.getReportCount(options) : reports.length;
 
     res.json({ reports, count: reports.length, totalCount });
   } catch (error) {

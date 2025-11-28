@@ -6,9 +6,11 @@ import { useNavigate } from "react-router-dom";
 import DashboardsList from "../components/dashboards/DashboardsList";
 import PositionedButton from "../components/layout/PositionedButton";
 import useSuperuser from "../hooks/useSuperuser";
+import useAdmin from "../hooks/useAdmin";
 
 const DashboardsPage = () => {
   const { isSuperuser } = useSuperuser();
+  const { isAdmin } = useAdmin();
   const navigate = useNavigate();
 
   const handleCreate = () => {
@@ -29,9 +31,11 @@ const DashboardsPage = () => {
 
       <DashboardsList />
 
-      <PositionedButton onClick={handleCreate} startIcon={<AddIcon />} variant="contained" justifyContent="flex-end">
-        Vincular dashboards
-      </PositionedButton>
+      {isSuperuser && isAdmin && (
+        <PositionedButton onClick={handleCreate} startIcon={<AddIcon />} variant="contained" justifyContent="flex-end">
+          Vincular dashboards
+        </PositionedButton>
+      )}
     </Paper>
   );
 };

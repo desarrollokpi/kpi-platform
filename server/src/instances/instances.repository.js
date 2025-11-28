@@ -1,6 +1,6 @@
 const { db } = require("../../database");
 const { eq, and, isNull, sql } = require("drizzle-orm");
-const { instances, accountsInstances } = require("../db/schema");
+const { instances, accountsInstances, accounts } = require("../db/schema");
 
 exports.createIntance = async (intanceData) => {
   const [result] = await db.insert(instances).values(intanceData);
@@ -49,7 +49,10 @@ exports.findAll = async (options = {}) => {
       deletedAt: instances.deletedAt,
       createdAt: instances.createdAt,
       updatedAt: instances.updatedAt,
+      // Keep a single representative accountId for backward compatibility
       accountId: sql`MIN(${accountsInstances.accountsId})`.as("accountId"),
+      // New: comma-separated list of all related accountIds (will be converted to array in services)
+      accountsIdsRaw: sql`GROUP_CONCAT(DISTINCT ${accountsInstances.accountsId})`.as("accountsIdsRaw"),
     })
     .from(instances)
     .leftJoin(accountsInstances, and(eq(instances.id, accountsInstances.instancesId), isNull(accountsInstances.deletedAt)))
@@ -120,11 +123,48 @@ exports.activate = async (id) => {
 };
 
 exports.associateAccountIntance = async (accountsId, instancesId) => {
+  // Check if relation already exists (even if soft-deleted) to avoid unique constraint issues
+  const existing = await db
+    .select({ id: accountsInstances.id })
+    .from(accountsInstances)
+    .where(and(eq(accountsInstances.accountsId, accountsId), eq(accountsInstances.instancesId, instancesId)))
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Reactivate existing relation
+    return await db
+      .update(accountsInstances)
+      .set({ active: true, deletedAt: null, updatedAt: new Date() })
+      .where(eq(accountsInstances.id, existing[0].id));
+  }
+
   const [result] = await db.insert(accountsInstances).values({
     accountsId,
     instancesId,
   });
   return result;
+};
+
+exports.deleteInstanceAndAssociations = async (instancesId) => {
+  await db.delete(accountsInstances).where(eq(accountsInstances.instancesId, instancesId));
+  await db.delete(instances).where(eq(instances.id, instancesId));
+};
+
+exports.findAccountInstancesByInstance = async (instancesId) => {
+  return await db
+    .select({
+      id: accountsInstances.id,
+      accountsId: accountsInstances.accountsId,
+    })
+    .from(accountsInstances)
+    .where(and(eq(accountsInstances.instancesId, instancesId), isNull(accountsInstances.deletedAt)));
+};
+
+exports.softDeleteAccountInstance = async (id) => {
+  return await db
+    .update(accountsInstances)
+    .set({ active: false, deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(accountsInstances.id, id));
 };
 
 exports.updateOrCreateAccountInstance = async (instanceId, accountId) => {
@@ -167,14 +207,27 @@ exports.findInstancesByAccount = async (accountsId) => {
 };
 
 exports.findAccountsByIntance = async (instancesId) => {
-  return await db.execute(sql`
-    SELECT a.*, ai.id as association_id, ai.active as association_active
-    FROM accounts a
-    INNER JOIN accounts_instances ai ON a.id = ai.accounts_id
-    WHERE ai.instances_id = ${instancesId}
-      AND ai.deleted_at IS NULL
-      AND a.deleted_at IS NULL
-  `);
+  return await db
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      subDomain: accounts.subDomain,
+      logoAddress: accounts.logoAddress,
+      active: accounts.active,
+      associationId: accountsInstances.id,
+      associationActive: accountsInstances.active,
+    })
+    .from(accountsInstances)
+    .innerJoin(
+      accounts,
+      and(eq(accountsInstances.accountsId, accounts.id), isNull(accounts.deletedAt))
+    )
+    .where(
+      and(
+        eq(accountsInstances.instancesId, instancesId),
+        isNull(accountsInstances.deletedAt)
+      )
+    );
 };
 
 module.exports = exports;

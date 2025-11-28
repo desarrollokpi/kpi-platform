@@ -40,7 +40,7 @@ const ManageDashboardForm = ({ dashboardId, bindField, active, handleSwitchChang
       <Grid item xs={12}>
         {reportId && reportId !== "" && dashboards.length === 0 && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            No hay reportes D para tu cuenta. Contacta al superusuario para que configure reportes para tu tenant.
+            No hay dashboards disponibles para el reporte seleccionado en tu cuenta. Contacta al superusuario para que los configure para tu tenant.
           </Alert>
         )}
         {reportId === "" && dashboards.length === 0 && (

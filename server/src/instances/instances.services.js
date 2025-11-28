@@ -1,9 +1,22 @@
 const instancesRepository = require("./instances.repository");
+const accountsRepository = require("../accounts/accounts.repository");
 const { ValidationError, NotFoundError, ConflictError } = require("../common/exception");
 const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
 
+const mapInstanceWithAccounts = async (instance) => {
+  if (!instance) return null;
+
+  const rows = await instancesRepository.findAccountsByIntance(instance.id);
+  const accountsIds = rows.map((row) => row.id);
+
+  return {
+    ...instance,
+    accountsIds,
+  };
+};
+
 exports.createIntance = async (intanceData) => {
-  const { name, baseUrl, apiUserName, apiPassword, accountId = null } = intanceData;
+  const { name, baseUrl, apiUserName, apiPassword, accountsId = [] } = intanceData;
 
   if (!name || !baseUrl) {
     throw new ValidationError("El nombre y baseUrl son requeridos");
@@ -27,11 +40,26 @@ exports.createIntance = async (intanceData) => {
       active: true,
     });
 
-    if (accountId) {
-      await instancesRepository.associateAccountIntance(accountId, result.insertId);
+    const instanceId = result.insertId;
+
+    try {
+      for (const accountId of accountsId) {
+        if (accountId) {
+          const account = await accountsRepository.findById(accountId);
+          if (!account) {
+            throw new NotFoundError(`Cuenta con id ${accountId} no encontrada`);
+          }
+          await instancesRepository.associateAccountIntance(account.id, instanceId);
+        }
+      }
+    } catch (error) {
+      // Rollback: remove instance and any partial associations
+      await instancesRepository.deleteInstanceAndAssociations(instanceId);
+      throw error;
     }
 
-    return await instancesRepository.findById(result.insertId);
+    const instance = await instancesRepository.findById(instanceId);
+    return await mapInstanceWithAccounts(instance);
   }
 
   throw new Error("Connection failed");
@@ -44,11 +72,28 @@ exports.getIntanceById = async (id) => {
     throw new NotFoundError("Instancia no encontrada");
   }
 
-  return intance;
+  return await mapInstanceWithAccounts(intance);
 };
 
 exports.getAllInstances = async (options = {}) => {
-  return await instancesRepository.findAll(options);
+  const rows = await instancesRepository.findAll(options);
+
+  // Normalize accountsIdsRaw -> accountsIds (array of numbers)
+  return rows.map((row) => {
+    const { accountsIdsRaw, ...rest } = row;
+    const accountsId =
+      typeof accountsIdsRaw === "string" && accountsIdsRaw.length > 0
+        ? accountsIdsRaw
+            .split(",")
+            .map((v) => parseInt(v, 10))
+            .filter((v) => !Number.isNaN(v))
+        : [];
+
+    return {
+      ...rest,
+      accountsId,
+    };
+  });
 };
 
 exports.getInstancesForSelect = async ({ accountId }) => {
@@ -73,32 +118,47 @@ exports.updateIntance = async (id, updateData) => {
     }
   }
 
-  // Separar accountId de updateData ya que no se actualiza directamente en instances
-  const { accountId, ...instanceData } = updateData;
+  // Separate accounts associations from instance core data
+  const { accountsId, ...instanceData } = updateData;
 
   const client = createApacheSuperSetClient(instanceData);
   const instanceWorking = await client.testConnection();
 
   if (instanceWorking) {
+    // If accountsId is provided, sync associations
+    if (Array.isArray(accountsId)) {
+      const desiredIds = [...new Set(accountsId.filter((a) => a))];
+
+      // Validate all accounts exist before changing anything
+      for (const accId of desiredIds) {
+        const account = await accountsRepository.findById(accId);
+        if (!account) {
+          throw new NotFoundError(`Cuenta con id ${accId} no encontrada`);
+        }
+      }
+
+      const currentRelations = await instancesRepository.findAccountInstancesByInstance(id);
+      const currentIds = currentRelations.map((rel) => rel.accountsId);
+
+      const toAdd = desiredIds.filter((accId) => !currentIds.includes(accId));
+      const toRemove = currentRelations.filter((rel) => !desiredIds.includes(rel.accountsId));
+
+      for (const accId of toAdd) {
+        await instancesRepository.associateAccountIntance(accId, id);
+      }
+
+      for (const rel of toRemove) {
+        await instancesRepository.softDeleteAccountInstance(rel.id);
+      }
+    }
+
     // Actualizar los datos de la instancia
     if (Object.keys(instanceData).length > 0) {
       await instancesRepository.updateIntance(id, instanceData);
     }
 
-    // Si se proporciona accountId, actualizar la relación en accountsInstances
-    if (accountId !== undefined) {
-      // Verificar que la cuenta existe
-      const accountsRepository = require("../accounts/accounts.repository");
-      const account = await accountsRepository.findById(accountId);
-      if (!account) {
-        throw new NotFoundError("Cuenta no encontrada");
-      }
-
-      // Actualizar o crear la relación en accountsInstances
-      await instancesRepository.updateOrCreateAccountInstance(id, accountId);
-    }
-
-    return await instancesRepository.findById(id);
+    const instance = await instancesRepository.findById(id);
+    return await mapInstanceWithAccounts(instance);
   }
 
   throw new Error("Connection failed");
@@ -123,7 +183,8 @@ exports.activateIntance = async (id) => {
 
   await instancesRepository.activate(id);
 
-  return await instancesRepository.findById(id);
+  const updated = await instancesRepository.findById(id);
+  return await mapInstanceWithAccounts(updated);
 };
 
 exports.getInstancesByAccount = async (accountId) => {
@@ -137,6 +198,5 @@ exports.getAccountsByIntance = async (intanceId) => {
     throw new NotFoundError("Instancia no encontrada");
   }
 
-  const result = await instancesRepository.findAccountsByIntance(intanceId);
-  return result[0] || [];
+  return await instancesRepository.findAccountsByIntance(intanceId);
 };

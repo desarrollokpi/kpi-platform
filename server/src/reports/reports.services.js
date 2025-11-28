@@ -1,6 +1,14 @@
 const reportsRepository = require("./reports.repository");
 const workspacesRepository = require("../workspaces/workspaces.repository");
 const { ValidationError, NotFoundError, ConflictError } = require("../common/exception");
+const { db } = require("../../database");
+const {
+  reports: reportsTable,
+  workspaces: workspacesTable,
+  accountsInstancesWorkspaces,
+  accountsInstances,
+} = require("../db/schema");
+const { and, eq, isNull } = require("drizzle-orm");
 
 exports.createReport = async (reportData) => {
   const { workspacesId, name } = reportData;
@@ -43,6 +51,61 @@ exports.getReportById = async (id) => {
 };
 
 exports.getAllReports = async (options = {}) => {
+  const { accountId, active, limit, offset } = options;
+
+  // If accountId is provided, filter reports by tenant via workspace associations
+  if (accountId !== undefined) {
+    const conditions = [isNull(reportsTable.deletedAt)];
+
+    if (active !== undefined) {
+      conditions.push(eq(reportsTable.active, active === true || active === "true"));
+    }
+
+    let query = db
+      .select({
+        id: reportsTable.id,
+        workspacesId: reportsTable.workspacesId,
+        name: reportsTable.name,
+        active: reportsTable.active,
+        deletedAt: reportsTable.deletedAt,
+        createdAt: reportsTable.createdAt,
+        updatedAt: reportsTable.updatedAt,
+      })
+      .from(reportsTable)
+      .innerJoin(
+        workspacesTable,
+        and(eq(reportsTable.workspacesId, workspacesTable.id), isNull(workspacesTable.deletedAt))
+      )
+      .innerJoin(
+        accountsInstancesWorkspaces,
+        and(
+          eq(accountsInstancesWorkspaces.idWorkspaces, workspacesTable.id),
+          eq(accountsInstancesWorkspaces.active, true),
+          isNull(accountsInstancesWorkspaces.deletedAt)
+        )
+      )
+      .innerJoin(
+        accountsInstances,
+        and(
+          eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
+          eq(accountsInstances.accountsId, accountId),
+          eq(accountsInstances.active, true),
+          isNull(accountsInstances.deletedAt)
+        )
+      )
+      .where(and(...conditions));
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    if (offset) {
+      query = query.offset(offset);
+    }
+
+    return await query;
+  }
+
   return await reportsRepository.findAll(options);
 };
 
@@ -50,8 +113,46 @@ exports.getReportsForSelect = async () => {
   return await reportsRepository.getForSelect();
 };
 
-exports.getReportCount = async (activeOnly = false) => {
-  return await reportsRepository.count(activeOnly);
+exports.getReportCount = async (options = {}) => {
+  const { accountId, active } = options;
+
+  if (accountId !== undefined) {
+    const conditions = [isNull(reportsTable.deletedAt)];
+
+    if (active !== undefined) {
+      conditions.push(eq(reportsTable.active, active === true || active === "true"));
+    }
+
+    const rows = await db
+      .select({ id: reportsTable.id })
+      .from(reportsTable)
+      .innerJoin(
+        workspacesTable,
+        and(eq(reportsTable.workspacesId, workspacesTable.id), isNull(workspacesTable.deletedAt))
+      )
+      .innerJoin(
+        accountsInstancesWorkspaces,
+        and(
+          eq(accountsInstancesWorkspaces.idWorkspaces, workspacesTable.id),
+          eq(accountsInstancesWorkspaces.active, true),
+          isNull(accountsInstancesWorkspaces.deletedAt)
+        )
+      )
+      .innerJoin(
+        accountsInstances,
+        and(
+          eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
+          eq(accountsInstances.accountsId, accountId),
+          eq(accountsInstances.active, true),
+          isNull(accountsInstances.deletedAt)
+        )
+      )
+      .where(and(...conditions));
+
+    return rows.length;
+  }
+
+  return await reportsRepository.count(active === true || active === "true");
 };
 
 exports.updateReport = async (id, updateData) => {

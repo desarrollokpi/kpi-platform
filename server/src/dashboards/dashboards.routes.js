@@ -9,6 +9,7 @@ router.use(hasToken);
 
 router.get("/", dashboardsController.getAllDashboards);
 router.get("/instancesForSelect", dashboardsController.getDashboardsInstancesForSelect);
+router.get("/assignableForUser/:userId", dashboardsController.getDashboardsAssignableToUser);
 
 router.post("/", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), dashboardsController.createDashboard);
 

@@ -7,17 +7,19 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { readReportsByAdmin, activateReport, deactivateReport } from "../../state/reports/reportsActions";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const ReportsList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
 
   const { reports, loading, totalCount } = useSelector(({ reports }) => reports, shallowEqual);
+  const { user } = useSelector(({ auth }) => auth, shallowEqual);
 
   const toggleActive = useCallback(
     (id, active) => {
@@ -68,9 +70,10 @@ const ReportsList = () => {
         active: activeFilter,
         limit: rowsPerPage,
         offset: page * rowsPerPage,
+        accountId: user?.accountId || null,
       })
     );
-  }, [dispatch, showOnlyActive, page, rowsPerPage]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, location.key, user]);
 
   if (loading && reports.length === 0) {
     return <CircularLoading />;

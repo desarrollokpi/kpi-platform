@@ -1,11 +1,13 @@
 import React, { useEffect, useCallback, useRef, useState, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { Paper, Box, Typography, Tooltip, CircularProgress, Snackbar, Alert, Button } from "@mui/material";
-import { Download as DownloadIcon, Email as EmailIcon } from "@mui/icons-material";
-import LoadingButton from "@mui/lab/LoadingButton";
+import { Paper, Box, Typography, CircularProgress, Snackbar, Alert, Button } from "@mui/material";
+// import { Paper, Box, Typography, Tooltip, CircularProgress, Snackbar, Alert, Button } from "@mui/material";
+// import { Download as DownloadIcon, Email as EmailIcon } from "@mui/icons-material";
+// import LoadingButton from "@mui/lab/LoadingButton";
 import { embedDashboard } from "@superset-ui/embedded-sdk";
-import { getDashboardEmbeddedConfig, exportDashboardCsv, sendDashboardEmail } from "../state/dashboards/dashboardsActions";
+// import { getDashboardEmbeddedConfig, exportDashboardCsv, sendDashboardEmail } from "../state/dashboards/dashboardsActions";
+import { getDashboardEmbeddedConfig } from "../state/dashboards/dashboardsActions";
 import { GET_DASHBOARD_EMBEDDED_CONFIG } from "../state/dashboards/dashboardsTypes";
 import useSuperuser from "../hooks/useSuperuser";
 import useAdmin from "../hooks/useAdmin";
@@ -37,7 +39,7 @@ const ShowDashboardPage = () => {
         dispatch({ type: GET_DASHBOARD_EMBEDDED_CONFIG, payload: null });
         setSnackbar({
           open: true,
-          message: "Error al cargar configuración del dashboard",
+          message: "El dashboard que intentas visualizar no está disponible para tu usuario.",
           severity: "error",
         });
       });
@@ -62,7 +64,7 @@ const ShowDashboardPage = () => {
             hideTab: !isSuperuser && !isAdmin,
             hideChartControls: !isSuperuser && !isAdmin,
             filters: {
-              visible: !isSuperuser && !isAdmin,
+              visible: isSuperuser || isAdmin,
             },
           },
         });
@@ -87,29 +89,29 @@ const ShowDashboardPage = () => {
     }
   }, [embeddedConfig, generateEmbedded]);
 
-  const handleExportCsv = async () => {
-    if (dashboardId) {
-      try {
-        await dispatch(exportDashboardCsv(dashboardId));
-        setSnackbar({ open: true, message: "CSV descargado exitosamente", severity: "success" });
-      } catch (error) {
-        setSnackbar({ open: true, message: "Error al descargar CSV", severity: "error" });
-      }
-    }
-  };
+  // const handleExportCsv = async () => {
+  //   if (dashboardId) {
+  //     try {
+  //       await dispatch(exportDashboardCsv(dashboardId));
+  //       setSnackbar({ open: true, message: "CSV descargado exitosamente", severity: "success" });
+  //     } catch (error) {
+  //       setSnackbar({ open: true, message: "Error al descargar CSV", severity: "error" });
+  //     }
+  //   }
+  // };
 
-  const handleSendEmail = async () => {
-    if (dashboardId) {
-      if (window.confirm("¿Enviar este dashboard por email?")) {
-        try {
-          await dispatch(sendDashboardEmail(dashboardId));
-          setSnackbar({ open: true, message: "Email enviado exitosamente", severity: "success" });
-        } catch (error) {
-          setSnackbar({ open: true, message: "Error al enviar email", severity: "error" });
-        }
-      }
-    }
-  };
+  // const handleSendEmail = async () => {
+  //   if (dashboardId) {
+  //     if (window.confirm("¿Enviar este dashboard por email?")) {
+  //       try {
+  //         await dispatch(sendDashboardEmail(dashboardId));
+  //         setSnackbar({ open: true, message: "Email enviado exitosamente", severity: "success" });
+  //       } catch (error) {
+  //         setSnackbar({ open: true, message: "Error al enviar email", severity: "error" });
+  //       }
+  //     }
+  //   }
+  // };
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -134,7 +136,7 @@ const ShowDashboardPage = () => {
           <Button onClick={() => navigate(`/${prefixRoute}/dashboards`)}>Volver</Button>
           <Typography variant="h6">{embeddedConfig?.dashboardName || "Dashboard"}</Typography>
         </Box>
-        {embeddedConfig && (
+        {/* {embeddedConfig && (
           <Box>
             <Tooltip title="Descargar datos en CSV">
               <span>
@@ -159,7 +161,7 @@ const ShowDashboardPage = () => {
               </span>
             </Tooltip>
           </Box>
-        )}
+        )} */}
       </Box>
 
       {!embeddedConfig && (

@@ -5,8 +5,79 @@ const permissionsService = require("../common/permissions.service");
 const { ValidationError, NotFoundError, ForbiddenError } = require("../common/exception");
 const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
 const { db } = require("../../database");
-const { accountsInstances, accountsInstancesWorkspaces, instances } = require("../db/schema");
+const {
+  accountsInstances,
+  accountsInstancesWorkspaces,
+  instances,
+  usersDashboards,
+  users,
+  dashboards: dashboardsTable,
+  reports: reportsTable,
+  workspaces: workspacesTable,
+} = require("../db/schema");
 const { and, eq, isNull } = require("drizzle-orm");
+
+const queryDashboardsByAccount = async (accountId, options = {}) => {
+  const conditions = [isNull(dashboardsTable.deletedAt)];
+
+  if (options.active !== undefined) {
+    const activeValue = options.active === true || options.active === "true";
+    conditions.push(eq(dashboardsTable.active, activeValue));
+  }
+
+  if (options.reportId !== undefined) {
+    conditions.push(eq(dashboardsTable.reportId, options.reportId));
+  }
+
+  let query = db
+    .select({
+      id: dashboardsTable.id,
+      supersetId: dashboardsTable.supersetId,
+      embeddedId: dashboardsTable.embeddedId,
+      name: dashboardsTable.name,
+      reportId: dashboardsTable.reportId,
+      active: dashboardsTable.active,
+      createdAt: dashboardsTable.createdAt,
+      updatedAt: dashboardsTable.updatedAt,
+    })
+    .from(dashboardsTable)
+    .innerJoin(
+      reportsTable,
+      and(eq(dashboardsTable.reportId, reportsTable.id), eq(reportsTable.active, true), isNull(reportsTable.deletedAt))
+    )
+    .innerJoin(
+      workspacesTable,
+      and(eq(reportsTable.workspacesId, workspacesTable.id), eq(workspacesTable.active, true), isNull(workspacesTable.deletedAt))
+    )
+    .innerJoin(
+      accountsInstancesWorkspaces,
+      and(
+        eq(accountsInstancesWorkspaces.idWorkspaces, workspacesTable.id),
+        eq(accountsInstancesWorkspaces.active, true),
+        isNull(accountsInstancesWorkspaces.deletedAt)
+      )
+    )
+    .innerJoin(
+      accountsInstances,
+      and(
+        eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
+        eq(accountsInstances.active, true),
+        isNull(accountsInstances.deletedAt),
+        eq(accountsInstances.accountsId, accountId)
+      )
+    )
+    .where(and(...conditions));
+
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  if (options.offset) {
+    query = query.offset(options.offset);
+  }
+
+  return await query;
+};
 
 exports.createDashboard = async (dashboardData) => {
   const { name, reportId, apacheId } = dashboardData;
@@ -97,35 +168,43 @@ exports.getDashboardById = async (id, userId) => {
 };
 
 exports.getAllDashboards = async (options = {}, userId) => {
+  const { accountId } = options;
+
+  // If accountId is provided, always filter dashboards by that tenant (used by superusers/admins views)
+  if (accountId !== undefined) {
+    return await queryDashboardsByAccount(accountId, options);
+  }
+
   const isRootAdmin = await permissionsService.isRootAdmin(userId);
 
   if (isRootAdmin) {
-    // Root Admin: Get all dashboards
+    // Root Admin without account filter: use generic repository
     return await dashboardsRepository.findAll(options);
   }
 
-  // For Tenant Admins and Users: Use permissions service
-  // This applies the "Regla de oro"
+  // For Tenant Admins and Users without explicit account filter: Use permissions service (Regla de oro)
   const accessibleDashboards = await permissionsService.getUserAccessibleDashboards(userId);
 
   // Apply additional filters if provided
   let filtered = accessibleDashboards;
 
   if (options.reportId) {
-    filtered = filtered.filter((d) => d.reportId === parseInt(options.reportId));
+    const reportFilter = parseInt(options.reportId, 10);
+    filtered = filtered.filter((d) => d.reportId === reportFilter);
   }
 
   if (options.active !== undefined) {
-    filtered = filtered.filter((d) => d.active === (options.active === true || options.active === "true"));
+    const activeValue = options.active === true || options.active === "true";
+    filtered = filtered.filter((d) => d.active === activeValue);
   }
 
   // Apply pagination
   if (options.offset !== undefined) {
-    filtered = filtered.slice(parseInt(options.offset));
+    filtered = filtered.slice(parseInt(options.offset, 10));
   }
 
   if (options.limit !== undefined) {
-    filtered = filtered.slice(0, parseInt(options.limit));
+    filtered = filtered.slice(0, parseInt(options.limit, 10));
   }
 
   return filtered;
@@ -341,4 +420,145 @@ exports.getDashboardEmbedInfo = async (dashboardId, userId) => {
   }
 
   return info;
+};
+
+exports.bulkAssignDashboardsToUser = async (targetUserId, dashboardIds, adminUserId) => {
+  if (!Array.isArray(dashboardIds)) {
+    throw new ValidationError("dashboardIds must be an array");
+  }
+
+  const uniqueDashboardIds = [...new Set(dashboardIds.map((id) => parseInt(id)))].filter((id) => !Number.isNaN(id));
+
+  // Get current direct assignments for the user
+  const currentRows = await db
+    .select({
+      dashboardId: usersDashboards.dashboardsId,
+    })
+    .from(usersDashboards)
+    .where(
+      and(
+        eq(usersDashboards.idUsers, targetUserId),
+        eq(usersDashboards.active, true),
+        isNull(usersDashboards.deletedAt)
+      )
+    );
+
+  const currentIds = new Set(currentRows.map((row) => row.dashboardId));
+  const desiredIds = new Set(uniqueDashboardIds);
+
+  const toAdd = [...desiredIds].filter((id) => !currentIds.has(id));
+  const toRemove = [...currentIds].filter((id) => !desiredIds.has(id));
+
+  // Add new assignments
+  for (const dashboardId of toAdd) {
+    await exports.assignDashboardToUser(dashboardId, targetUserId, adminUserId);
+  }
+
+  // Remove assignments not in desired list
+  for (const dashboardId of toRemove) {
+    await exports.removeDashboardFromUser(dashboardId, targetUserId, adminUserId);
+  }
+
+  return {
+    success: true,
+    message: "Dashboards updated successfully",
+  };
+};
+
+exports.getDashboardsAssignableToUser = async (targetUserId, adminUserId) => {
+  const userRows = await db
+    .select({
+      accountsId: users.accountsId,
+    })
+    .from(users)
+    .where(and(eq(users.id, targetUserId), eq(users.active, true), isNull(users.deletedAt)))
+    .limit(1);
+
+  if (!userRows.length) {
+    throw new NotFoundError("User not found");
+  }
+
+  const targetAccountId = userRows[0].accountsId;
+
+  // If user has no account (e.g., root admin user), return all active dashboards
+  if (!targetAccountId) {
+    const rows = await db
+      .select({
+        id: dashboardsTable.id,
+        supersetId: dashboardsTable.supersetId,
+        embeddedId: dashboardsTable.embeddedId,
+        name: dashboardsTable.name,
+        reportId: dashboardsTable.reportId,
+        active: dashboardsTable.active,
+        createdAt: dashboardsTable.createdAt,
+        updatedAt: dashboardsTable.updatedAt,
+      })
+      .from(dashboardsTable)
+      .innerJoin(
+        reportsTable,
+        and(eq(dashboardsTable.reportId, reportsTable.id), eq(reportsTable.active, true), isNull(reportsTable.deletedAt))
+      )
+      .innerJoin(
+        workspacesTable,
+        and(eq(reportsTable.workspacesId, workspacesTable.id), eq(workspacesTable.active, true), isNull(workspacesTable.deletedAt))
+      )
+      .where(and(eq(dashboardsTable.active, true), isNull(dashboardsTable.deletedAt)));
+
+    return rows;
+  }
+
+  // For tenant users, return dashboards whose workspace is enabled for their account
+  const rows = await db
+    .select({
+      id: dashboardsTable.id,
+      supersetId: dashboardsTable.supersetId,
+      embeddedId: dashboardsTable.embeddedId,
+      name: dashboardsTable.name,
+      reportId: dashboardsTable.reportId,
+      active: dashboardsTable.active,
+      createdAt: dashboardsTable.createdAt,
+      updatedAt: dashboardsTable.updatedAt,
+    })
+    .from(dashboardsTable)
+    .innerJoin(
+      reportsTable,
+      and(eq(dashboardsTable.reportId, reportsTable.id), eq(reportsTable.active, true), isNull(reportsTable.deletedAt))
+    )
+    .innerJoin(
+      workspacesTable,
+      and(eq(reportsTable.workspacesId, workspacesTable.id), eq(workspacesTable.active, true), isNull(workspacesTable.deletedAt))
+    )
+    .innerJoin(
+      accountsInstancesWorkspaces,
+      and(
+        eq(accountsInstancesWorkspaces.idWorkspaces, workspacesTable.id),
+        eq(accountsInstancesWorkspaces.active, true),
+        isNull(accountsInstancesWorkspaces.deletedAt)
+      )
+    )
+    .innerJoin(
+      accountsInstances,
+      and(
+        eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
+        eq(accountsInstances.active, true),
+        isNull(accountsInstances.deletedAt)
+      )
+    )
+    .where(
+      and(
+        eq(dashboardsTable.active, true),
+        isNull(dashboardsTable.deletedAt),
+        eq(accountsInstances.accountsId, targetAccountId)
+      )
+    );
+
+  // Deduplicate dashboards by id in case a workspace is linked to multiple instances
+  const byId = new Map();
+  rows.forEach((row) => {
+    if (!byId.has(row.id)) {
+      byId.set(row.id, row);
+    }
+  });
+
+  return Array.from(byId.values());
 };

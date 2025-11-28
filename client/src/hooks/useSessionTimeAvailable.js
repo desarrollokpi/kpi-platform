@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { toast } from "react-toastify";
 import { getTimeAvailable } from "../state/auth/authActions";
@@ -11,31 +11,33 @@ const useSessionTimeAvailable = () => {
 
   const { user, timeAvailable, isAuthenticated } = useSelector((state) => state.auth, shallowEqual);
 
+  const roleName = useMemo(() => {
+    if (!user) return undefined;
+    if (Array.isArray(user.roles) && user.roles.length > 0) return user.roles[0];
+    return user.role;
+  }, [user]);
+
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !roleName) return;
 
-    const role = Array.isArray(user.roles) && user.roles.length > 0 ? user.roles[0] : user.role;
-
-    if (!role) return;
-
-    dispatch(getTimeAvailable(role));
+    dispatch(getTimeAvailable(roleName));
 
     const intervalId = setInterval(() => {
-      dispatch(getTimeAvailable(role));
+      dispatch(getTimeAvailable(roleName));
     }, ONE_MINUTE_SECONDS * 1000);
 
     return () => clearInterval(intervalId);
-  }, [dispatch, isAuthenticated, user]);
+  }, [dispatch, isAuthenticated, roleName]);
 
   const previousTimeRef = useRef(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !roleName) {
       previousTimeRef.current = null;
       return;
     }
 
-    if (timeAvailable == null) {
+    if (timeAvailable === null || timeAvailable === undefined) {
       previousTimeRef.current = timeAvailable;
       return;
     }
@@ -45,19 +47,35 @@ const useSessionTimeAvailable = () => {
     const justCrossedThreshold = (prev == null || prev > WARNING_THRESHOLD_SECONDS) && timeAvailable <= WARNING_THRESHOLD_SECONDS && timeAvailable > 0;
 
     if (justCrossedThreshold) {
-      toast.warning("La sesión se cerrará en 5 minutos por inactividad", {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        theme: "light",
-      });
+      toast.warning(
+        ({ closeToast }) => (
+          <div>
+            <p>La sesión se cerrará en 5 minutos por inactividad.</p>
+            <button
+              type="button"
+              onClick={() => {
+                dispatch(getTimeAvailable(roleName));
+                closeToast();
+              }}
+            >
+              Mantener sesión activa
+            </button>
+          </div>
+        ),
+        {
+          position: "top-center",
+          autoClose: false,
+          hideProgressBar: false,
+          closeOnClick: false,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "light",
+        }
+      );
     }
 
     previousTimeRef.current = timeAvailable;
-  }, [timeAvailable, isAuthenticated]);
+  }, [timeAvailable, isAuthenticated, dispatch, roleName]);
 };
 
 export default useSessionTimeAvailable;

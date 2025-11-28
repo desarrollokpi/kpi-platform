@@ -41,11 +41,11 @@ export const readUsers =
     }
   };
 
-export const updateUser = (user) => async (dispatch) => {
+export const updateUser = (id, updateUserData) => async (dispatch) => {
   setLoading(dispatch, true);
 
   try {
-    const res = await axios.put(`/users/${user.id}`, user, config);
+    const res = await axios.put(`/users/${id}`, updateUserData, config);
     dispatch({ type: UPDATE, payload: res.data });
   } catch (error) {
     handleError(dispatch, error);
@@ -54,11 +54,26 @@ export const updateUser = (user) => async (dispatch) => {
   }
 };
 
-export const updateUserPasswordByUser = (password) => async (dispatch) => {
+export const updateUserPasswordByUser =
+  ({ currentPassword, newPassword }) =>
+  async (dispatch) => {
+    setLoading(dispatch, true);
+
+    try {
+      const res = await axios.put(`/users/profile/password`, { currentPassword, newPassword }, config);
+      dispatch({ type: UPDATE_PASSWORD, payload: res.data });
+    } catch (error) {
+      handleError(dispatch, error);
+    } finally {
+      setLoading(dispatch, false);
+    }
+  };
+
+export const resetUserPasswordByAdmin = (userId, newPassword) => async (dispatch) => {
   setLoading(dispatch, true);
 
   try {
-    const res = await axios.put(`/users/changePassword`, { password }, config);
+    const res = await axios.put(`/users/${userId}/password`, { newPassword }, config);
     dispatch({ type: UPDATE_PASSWORD, payload: res.data });
   } catch (error) {
     handleError(dispatch, error);

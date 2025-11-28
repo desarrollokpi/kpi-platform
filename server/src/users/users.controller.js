@@ -1,5 +1,6 @@
 const usersServices = require("./users.services");
 const { ValidationError } = require("../common/exception");
+const dashboardsServices = require("../dashboards/dashboards.services");
 
 exports.createUser = async (req, res, next) => {
   try {
@@ -54,11 +55,14 @@ exports.getProfile = async (req, res, next) => {
 
 exports.getAllUsers = async (req, res, next) => {
   try {
-    const { active, accountsId, limit, offset } = req.query;
+    const { active, accountsId, accountId, limit, offset } = req.query;
 
     const options = {};
     if (active !== undefined) options.active = active === "true";
-    if (accountsId !== undefined) options.accountsId = parseInt(accountsId);
+    const accountsIdFilter = accountId ?? accountsId;
+    if (accountsIdFilter !== undefined) {
+      options.accountsId = parseInt(accountsIdFilter);
+    }
     if (limit !== undefined) options.limit = parseInt(limit);
     if (offset !== undefined) options.offset = parseInt(offset);
 
@@ -89,12 +93,13 @@ exports.getUsersByAccount = async (req, res, next) => {
 exports.updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { username, email, name } = req.body;
+    const { username, mail, name, roleId } = req.body;
 
     const user = await usersServices.updateUser(parseInt(id), {
       username,
-      email,
+      mail,
       name,
+      roleId,
     });
 
     res.json({
@@ -227,6 +232,28 @@ exports.deleteUser = async (req, res, next) => {
     res.json({
       message: "Usuario eliminado exitosamente",
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.assignDashboardsToUser = async (req, res, next) => {
+  try {
+    const adminUserId = req.userId;
+    if (!adminUserId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { id } = req.params;
+    const { dashboardIds } = req.body;
+
+    if (!Array.isArray(dashboardIds)) {
+      throw new ValidationError("dashboardIds must be an array");
+    }
+
+    const result = await dashboardsServices.bulkAssignDashboardsToUser(parseInt(id), dashboardIds, adminUserId);
+
+    res.json(result);
   } catch (error) {
     next(error);
   }

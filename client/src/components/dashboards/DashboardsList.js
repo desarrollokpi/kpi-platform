@@ -8,13 +8,14 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { getAllDashboards, activateDashboard, deactivateDashboard } from "../../state/dashboards/dashboardsActions";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useSuperuser from "../../hooks/useSuperuser";
 import useAdmin from "../../hooks/useAdmin";
 
 const DashboardsList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isSuperuser } = useSuperuser();
   const { isAdmin } = useAdmin();
 
@@ -22,6 +23,8 @@ const DashboardsList = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const { dashboards, loading, totalCount } = useSelector(({ dashboards }) => dashboards, shallowEqual);
+  const { user } = useSelector(({ auth }) => auth, shallowEqual);
+
   const prefixRoute = useMemo(() => {
     if (isSuperuser) {
       return "superusers";
@@ -40,11 +43,18 @@ const DashboardsList = () => {
     [dispatch]
   );
 
-  const headers = [
-    { label: "Nombre", key: "name" },
-    { label: "Creado", key: "createdAt", type: "date", hideOnMobile: true },
-    { label: "¿Está Activo?", key: "active", type: "boolean", onToggle: (item, value) => toggleActive(item.id, value) },
-  ];
+  const headers = useMemo(() => {
+    const userHeaders = [
+      { label: "Nombre", key: "name" },
+      { label: "Creado", key: "createdAt", type: "date", hideOnMobile: true },
+    ];
+
+    if (isAdmin || isSuperuser) {
+      userHeaders.push({ label: "¿Está Activo?", key: "active", type: "boolean", onToggle: (item, value) => toggleActive(item.id, value) });
+    }
+
+    return userHeaders;
+  }, [isAdmin, isSuperuser, toggleActive]);
 
   const actions =
     isAdmin || isSuperuser
@@ -93,14 +103,20 @@ const DashboardsList = () => {
   useEffect(() => {
     const activeFilter = showOnlyActive ? true : undefined;
 
-    dispatch(
-      getAllDashboards({
-        active: activeFilter,
-        limit: rowsPerPage,
-        offset: page * rowsPerPage,
-      })
-    );
-  }, [dispatch, showOnlyActive, page, rowsPerPage]);
+    const filters = {
+      active: activeFilter,
+      limit: rowsPerPage,
+      offset: page * rowsPerPage,
+    };
+
+    // For tenant users we rely on backend permission checks (no explicit accountId filter).
+    // Superusers/Admins list dashboards for their tenant using accountId.
+    if (user?.accountId && (isSuperuser || isAdmin)) {
+      filters.accountId = user.accountId;
+    }
+
+    dispatch(getAllDashboards(filters));
+  }, [dispatch, showOnlyActive, page, rowsPerPage, location.key, user, isSuperuser, isAdmin]);
 
   if (loading && dashboards.length === 0) {
     return <CircularLoading />;
@@ -136,17 +152,19 @@ const DashboardsList = () => {
         actions={actions}
       />
 
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 2 }}>
-        <Typography>Todos</Typography>
-        <Switch
-          inputProps={{
-            "aria-label": showOnlyActive ? "Todos" : "Solo activos",
-          }}
-          checked={showOnlyActive}
-          onChange={handleSwitchChange}
-        />
-        <Typography>Solo activos</Typography>
-      </Stack>
+      {isSuperuser && isAdmin && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 2 }}>
+          <Typography>Todos</Typography>
+          <Switch
+            inputProps={{
+              "aria-label": showOnlyActive ? "Todos" : "Solo activos",
+            }}
+            checked={showOnlyActive}
+            onChange={handleSwitchChange}
+          />
+          <Typography>Solo activos</Typography>
+        </Stack>
+      )}
     </>
   );
 };

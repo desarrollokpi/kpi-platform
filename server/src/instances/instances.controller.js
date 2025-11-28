@@ -2,14 +2,16 @@ const instancesServices = require("./instances.services");
 
 exports.createIntance = async (req, res, next) => {
   try {
-    const { name, baseUrl, apiUserName, apiPassword, accountId } = req.body;
+    const { name, baseUrl, apiUserName, apiPassword, accountsId } = req.body;
+
+    console.log("createIntance accountsId", accountsId);
 
     const intance = await instancesServices.createIntance({
       name,
       baseUrl,
       apiUserName,
       apiPassword,
-      accountId,
+      accountsId,
     });
 
     res.status(201).json({
@@ -61,20 +63,16 @@ exports.getAllInstances = async (req, res, next) => {
 exports.updateIntance = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, baseUrl, apiUserName, apiPassword, accountId } = req.body;
+    const { name, baseUrl, apiUserName, apiPassword, accountsId } = req.body;
 
     const parsedId = parseInt(id, 10);
-    const parsedAccountId =
-      accountId !== undefined && accountId !== null && accountId !== ""
-        ? parseInt(accountId, 10)
-        : undefined;
 
     const intance = await instancesServices.updateIntance(parsedId, {
       name,
       baseUrl,
       apiUserName,
       apiPassword,
-      accountId: parsedAccountId,
+      accountsId,
     });
 
     res.json({

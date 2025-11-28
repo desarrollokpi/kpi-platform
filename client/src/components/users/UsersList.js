@@ -9,13 +9,14 @@ import PeopleIcon from "@mui/icons-material/People";
 import CircularLoading from "../layout/CircularLoading";
 import PaginatedTable from "../common/PaginatedTable";
 import { readUsers, activateUser, deactivateUser } from "../../state/users/usersActions";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useAdmin from "../../hooks/useAdmin";
 import useSuperuser from "../../hooks/useSuperuser";
 
 const UsersList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isSuperuser } = useSuperuser();
   const { isAdmin } = useAdmin();
 
@@ -55,6 +56,7 @@ const UsersList = () => {
       ),
       color: "primary",
       icon: <DashboardIcon />,
+      hidden: (userItem) => !userItem.accountsId,
     },
     {
       tooltip: "Editar usuario",
@@ -102,13 +104,13 @@ const UsersList = () => {
       offset: page * rowsPerPage,
     };
 
-    // Tenant ${prefixRoute} should only see users from their account
+    // Tenant admins should only see users from their account
     if (isAdmin && accountsId) {
       filters.accountId = accountsId;
     }
 
     dispatch(readUsers(filters));
-  }, [dispatch, showOnlyActive, page, rowsPerPage, isAdmin, accountsId]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, isAdmin, accountsId, location.key]);
 
   if (loading && users.length === 0) {
     return <CircularLoading />;

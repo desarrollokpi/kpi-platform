@@ -51,6 +51,7 @@ exports.validateUserDashboardAccess = async (userId, dashboardId) => {
 
     const userRoles = await exports.getUserRoles(userId);
     const isRootAdmin = userRoles.includes(ROLE_NAMES.ROOT_ADMIN);
+    const isTenantAdmin = userRoles.includes(ROLE_NAMES.TENANT_ADMIN);
 
     if (isRootAdmin) {
       const rows = await db
@@ -68,6 +69,37 @@ exports.validateUserDashboardAccess = async (userId, dashboardId) => {
       return false;
     }
 
+    // Tenant admins: can access any dashboard within their tenant
+    if (isTenantAdmin) {
+      const tenantRows = await db
+        .select({ id: dashboards.id })
+        .from(dashboards)
+        .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
+        .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+        .innerJoin(
+          accountsInstancesWorkspaces,
+          and(
+            eq(accountsInstancesWorkspaces.idWorkspaces, workspaces.id),
+            eq(accountsInstancesWorkspaces.active, true),
+            isNull(accountsInstancesWorkspaces.deletedAt)
+          )
+        )
+        .innerJoin(
+          accountsInstances,
+          and(
+            eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
+            eq(accountsInstances.active, true),
+            isNull(accountsInstances.deletedAt),
+            eq(accountsInstances.accountsId, user.accountsId)
+          )
+        )
+        .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
+        .limit(1);
+
+      return tenantRows.length > 0;
+    }
+
+    // Regular tenant users: must have explicit assignment via usersDashboards
     const accessRows = await db
       .select({ id: dashboards.id })
       .from(users)
@@ -132,6 +164,7 @@ exports.getUserAccessibleDashboards = async (userId) => {
 
     const userRoles = await exports.getUserRoles(userId);
     const isRootAdmin = userRoles.includes(ROLE_NAMES.ROOT_ADMIN);
+    const isTenantAdmin = userRoles.includes(ROLE_NAMES.TENANT_ADMIN);
 
     if (isRootAdmin) {
       const dashboardRows = await db
@@ -160,6 +193,52 @@ exports.getUserAccessibleDashboards = async (userId) => {
       return [];
     }
 
+    // Tenant admins: all dashboards within their tenant
+    if (isTenantAdmin) {
+      const dashboardRows = await db
+        .select({
+          id: dashboards.id,
+          supersetId: dashboards.supersetId,
+          embeddedId: dashboards.embeddedId,
+          name: dashboards.name,
+          reportsId: dashboards.reportId,
+          reportName: reports.name,
+          workspacesId: reports.workspacesId,
+          workspaceName: workspaces.name,
+          instanceId: instances.id,
+          instanceName: instances.name,
+          instanceBaseUrl: instances.baseUrl,
+          active: dashboards.active,
+          createdAt: dashboards.createdAt,
+          updatedAt: dashboards.updatedAt,
+        })
+        .from(dashboards)
+        .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
+        .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+        .innerJoin(
+          accountsInstancesWorkspaces,
+          and(
+            eq(accountsInstancesWorkspaces.idWorkspaces, workspaces.id),
+            eq(accountsInstancesWorkspaces.active, true),
+            isNull(accountsInstancesWorkspaces.deletedAt)
+          )
+        )
+        .innerJoin(
+          accountsInstances,
+          and(
+            eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
+            eq(accountsInstances.active, true),
+            isNull(accountsInstances.deletedAt),
+            eq(accountsInstances.accountsId, user.accountsId)
+          )
+        )
+        .innerJoin(instances, and(eq(instances.id, accountsInstances.instancesId), eq(instances.active, true), isNull(instances.deletedAt)))
+        .where(and(eq(dashboards.active, true), isNull(dashboards.deletedAt)));
+
+      return dashboardRows;
+    }
+
+    // Regular tenant users: dashboards explicitly assigned to them within their tenant
     const dashboardRows = await db
       .select({
         id: dashboards.id,

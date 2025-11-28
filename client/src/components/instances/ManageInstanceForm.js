@@ -2,7 +2,7 @@ import React from "react";
 import { Typography, Switch, Grid } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageInstanceForm = ({ instanceId, accounts, bindField, active, handleSwitchChange, isSuperuser }) => {
+const ManageInstanceForm = ({ instanceId, accounts, bindField, active, accountsId, handleSwitchChange, isSuperuser }) => {
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -35,8 +35,8 @@ const ManageInstanceForm = ({ instanceId, accounts, bindField, active, handleSwi
         </FormField>
 
         {isSuperuser && (
-          <FormField label="Cuenta Asociada">
-            <FormField.Select {...bindField("accountId")} options={accounts} optionValue="value" display="label" />
+          <FormField label="Cuentas Asociadas">
+            <FormField.SelectMultiple {...bindField("accountsId")} options={accounts} optionValue={accountsId} display="label" />
           </FormField>
         )}
 

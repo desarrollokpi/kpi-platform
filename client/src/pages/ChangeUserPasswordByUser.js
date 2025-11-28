@@ -22,6 +22,7 @@ const ChangeUserPasswordByUser = () => {
   const [error, toggleError] = useToggle(false);
 
   const [fields, bindField, areFieldsEmpty] = useForm({
+    currentPassword: "",
     password: "",
     confirmPassword: "",
   });
@@ -34,7 +35,12 @@ const ChangeUserPasswordByUser = () => {
     if (fields.password !== fields.confirmPassword) {
       toggleError();
     } else {
-      dispatch(updateUserPasswordByUser(fields.password));
+      dispatch(
+        updateUserPasswordByUser({
+          currentPassword: fields.currentPassword,
+          newPassword: fields.password,
+        })
+      );
       buttonHasBeenClicked();
     }
   };
@@ -53,12 +59,29 @@ const ChangeUserPasswordByUser = () => {
         </Grid>
 
         <Grid item container justifyContent="center" md={8} alignItems="center">
-          <FormField label="Contraseña">
-            <FormField.TextField error={error} type="password" helperText={error && "Ambos campos debes ser iguales"} {...bindField("password")} />
+          <FormField label="Contraseña actual">
+            <FormField.TextField
+              type="password"
+              {...bindField("currentPassword")}
+            />
+          </FormField>
+
+          <FormField label="Nueva contraseña">
+            <FormField.TextField
+              error={error}
+              type="password"
+              helperText={error && "Ambos campos debes ser iguales"}
+              {...bindField("password")}
+            />
           </FormField>
 
           <FormField label="Confirmar contraseña">
-            <FormField.TextField error={error} type="password" helperText={error && "Ambos campos debes ser iguales"} {...bindField("confirmPassword")} />
+            <FormField.TextField
+              error={error}
+              type="password"
+              helperText={error && "Ambos campos debes ser iguales"}
+              {...bindField("confirmPassword")}
+            />
           </FormField>
         </Grid>
       </Grid>

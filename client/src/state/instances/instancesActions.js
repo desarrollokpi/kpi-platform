@@ -28,6 +28,7 @@ export const getAllInstances =
   async (dispatch) => {
     setLoading(dispatch, true);
     try {
+      console.log("filters", filters);
       const { data } = await axios.get(`/instances`, { params: filters });
       dispatch({
         type: GET_ALL_INSTANCES,
@@ -82,10 +83,9 @@ export const createInstance = (instanceData) => async (dispatch) => {
 };
 
 // Update instance
-export const updateInstance = (instanceData) => async (dispatch) => {
+export const updateInstance = (id, updateData) => async (dispatch) => {
   setLoading(dispatch, true);
   try {
-    const { id, ...updateData } = instanceData;
     const { data } = await axios.put(`/instances/${id}`, updateData);
     dispatch({
       type: UPDATE_INSTANCE,

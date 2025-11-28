@@ -141,14 +141,23 @@ exports.getAllUsers = async (options = {}) => {
 
   const totalCount = await usersRepository.count(active, accountsId);
 
-  // Remove passwords from all users
-  const sanitizedUsers = users.map((user) => {
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  });
+  // Enrich users with roles and remove password
+  const usersWithRoles = await Promise.all(
+    users.map(async (user) => {
+      const userWithRoles = await usersRepository.findByIdWithRoles(user.id);
+      if (!userWithRoles) {
+        return {
+          ...user,
+          roles: [],
+        };
+      }
+      const { password, ...userWithoutPassword } = userWithRoles;
+      return userWithoutPassword;
+    })
+  );
 
   return {
-    users: sanitizedUsers,
+    users: usersWithRoles,
     totalCount,
   };
 };
@@ -180,7 +189,7 @@ exports.getUsersByAccount = async (accountId, requestingUserId) => {
 };
 
 exports.updateUser = async (id, updateData) => {
-  const { username, mail, name } = updateData;
+  const { username, mail, name, roleId } = updateData;
 
   // Check if user exists
   const user = await usersRepository.findById(id);
@@ -213,11 +222,35 @@ exports.updateUser = async (id, updateData) => {
     dataToUpdate.name = name;
   }
 
-  if (Object.keys(dataToUpdate).length === 0) {
-    throw new ValidationError("No hay datos para actualizar");
+  if (Object.keys(dataToUpdate).length > 0) {
+    await usersRepository.updateUser(id, dataToUpdate);
   }
 
-  await usersRepository.updateUser(id, dataToUpdate);
+  // If a roleId is provided, update the user's role assignment
+  if (roleId !== undefined && roleId !== null && roleId !== "") {
+    const newRole = await rolesRepository.getRoleById(roleId);
+    if (!newRole) {
+      throw new NotFoundError("Rol no encontrado");
+    }
+
+    // Validate role assignment against business rules
+    permissionsService.validateRoleAssignment(newRole.name, user.accountsId);
+
+    // Get current roles for the user
+    const currentRoles = await rolesRepository.getUserRoles(id);
+
+    // Remove all current roles
+    for (const currentRole of currentRoles) {
+      await rolesRepository.removeRoleFromUser(id, currentRole.id);
+    }
+
+    // Assign the new role
+    await rolesRepository.assignRoleToUser(id, newRole.id);
+  }
+
+  if (Object.keys(dataToUpdate).length === 0 && (roleId === undefined || roleId === null || roleId === "")) {
+    throw new ValidationError("No hay datos para actualizar");
+  }
 
   return await exports.getUserById(id);
 };
