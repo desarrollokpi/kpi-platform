@@ -1,8 +1,8 @@
 import React from "react";
-import { Typography, Switch, Grid } from "@mui/material";
+import { Typography, Grid } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageInstanceForm = ({ instanceId, accounts, bindField, active, accountsId, handleSwitchChange, isSuperuser }) => {
+const ManageInstanceForm = ({ instanceId, accounts, bindField, accountIds, isSuperuser }) => {
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -36,13 +36,9 @@ const ManageInstanceForm = ({ instanceId, accounts, bindField, active, accountsI
 
         {isSuperuser && (
           <FormField label="Cuentas Asociadas">
-            <FormField.SelectMultiple {...bindField("accountsId")} options={accounts} optionValue={accountsId} display="label" />
+            <FormField.SelectMultiple {...bindField("accountIds")} options={accounts} value={accountIds} />
           </FormField>
         )}
-
-        <FormField label="Instancia Activa" mt={2}>
-          <Switch checked={active} onChange={handleSwitchChange} />
-        </FormField>
       </Grid>
 
       <Grid item xs={12}>

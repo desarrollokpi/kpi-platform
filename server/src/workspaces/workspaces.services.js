@@ -152,6 +152,18 @@ exports.activateWorkspace = async (id) => {
   return await workspacesRepository.findById(id);
 };
 
+exports.deactivateWorkspace = async (id) => {
+  const workspace = await workspacesRepository.findById(id);
+
+  if (!workspace) {
+    throw new NotFoundError("Workspace no encontrado");
+  }
+
+  await workspacesRepository.deactivate(id);
+
+  return await workspacesRepository.findById(id);
+};
+
 exports.getWorkspacesByAccount = async (accountId) => {
   return await workspacesRepository.findWorkspacesByAccount(accountId);
 };

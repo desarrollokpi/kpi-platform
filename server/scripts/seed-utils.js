@@ -111,14 +111,14 @@ async function assignRoleToUser(userId, roleName) {
   const existing = await db
     .select({ id: usersRoles.id })
     .from(usersRoles)
-    .where(and(eq(usersRoles.usersId, userId), eq(usersRoles.rolesId, roleId)))
+    .where(and(eq(usersRoles.userId, userId), eq(usersRoles.roleId, roleId)))
     .limit(1);
 
   if (existing.length) {
     return existing[0].id;
   }
 
-  const inserted = await db.insert(usersRoles).values({ usersId: userId, rolesId: roleId, active: true });
+  const inserted = await db.insert(usersRoles).values({ userId, roleId, active: true });
   return inserted?.[0]?.insertId || roleId;
 }
 
@@ -173,7 +173,7 @@ async function ensureAccountIntanceLink(accountId, intanceId) {
   const existing = await db
     .select({ id: accountsInstances.id, active: accountsInstances.active })
     .from(accountsInstances)
-    .where(and(eq(accountsInstances.accountsId, accountId), eq(accountsInstances.instancesId, intanceId)))
+    .where(and(eq(accountsInstances.accountId, accountId), eq(accountsInstances.instanceId, intanceId)))
     .limit(1);
 
   if (existing.length) {
@@ -184,8 +184,8 @@ async function ensureAccountIntanceLink(accountId, intanceId) {
   }
 
   const inserted = await db.insert(accountsInstances).values({
-    accountsId: accountId,
-    instancesId: intanceId,
+    accountId,
+    instanceId: intanceId,
     active: true,
   });
 
@@ -194,14 +194,14 @@ async function ensureAccountIntanceLink(accountId, intanceId) {
 
 /**
  * Crea o actualiza un usuario
- * ACTUALIZADO: usa user_name, mail, accounts_id (nullable para root_admin)
+ * ACTUALIZADO: usa user_name, mail, account_id (nullable para root_admin)
  */
-async function ensureUser({ userName, name = null, mail, password, accountsId = null, active = true }) {
+async function ensureUser({ userName, name = null, mail, password, accountId = null, active = true }) {
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.mail, mail)).limit(1);
 
   if (existing.length) {
     const userId = existing[0].id;
-    await db.update(users).set({ userName, name, accountsId, active }).where(eq(users.id, userId));
+    await db.update(users).set({ userName, name, accountId, active }).where(eq(users.id, userId));
     return userId;
   }
 
@@ -210,7 +210,7 @@ async function ensureUser({ userName, name = null, mail, password, accountsId = 
     name,
     mail,
     password,
-    accountsId,
+    accountId,
     active,
   });
 
@@ -245,7 +245,7 @@ async function enableWorkspaceForAccountIntance(accountIntanceId, workspaceId) {
   const existing = await db
     .select({ id: accountsInstancesWorkspaces.id, active: accountsInstancesWorkspaces.active })
     .from(accountsInstancesWorkspaces)
-    .where(and(eq(accountsInstancesWorkspaces.idAccountsInstances, accountIntanceId), eq(accountsInstancesWorkspaces.idWorkspaces, workspaceId)))
+    .where(and(eq(accountsInstancesWorkspaces.accountInstanceId, accountIntanceId), eq(accountsInstancesWorkspaces.workspaceId, workspaceId)))
     .limit(1);
 
   if (existing.length) {
@@ -256,8 +256,8 @@ async function enableWorkspaceForAccountIntance(accountIntanceId, workspaceId) {
   }
 
   const inserted = await db.insert(accountsInstancesWorkspaces).values({
-    idAccountsInstances: accountIntanceId,
-    idWorkspaces: workspaceId,
+    accountInstanceId: accountIntanceId,
+    workspaceId,
     active: true,
   });
 
@@ -268,11 +268,11 @@ async function enableWorkspaceForAccountIntance(accountIntanceId, workspaceId) {
  * Crea o actualiza un report
  * ACTUALIZADO: ahora pertenece a workspaces_id (no a superset_instance_id)
  */
-async function ensureReport({ workspacesId, name, active = true }) {
+async function ensureReport({ workspaceId, name, active = true }) {
   const existing = await db
     .select({ id: reports.id })
     .from(reports)
-    .where(and(eq(reports.workspacesId, workspacesId), eq(reports.name, name)))
+    .where(and(eq(reports.workspaceId, workspaceId), eq(reports.name, name)))
     .limit(1);
 
   if (existing.length) {
@@ -282,7 +282,7 @@ async function ensureReport({ workspacesId, name, active = true }) {
   }
 
   await db.insert(reports).values({
-    workspacesId,
+    workspaceId,
     name,
     active,
   });
@@ -290,7 +290,7 @@ async function ensureReport({ workspacesId, name, active = true }) {
   const created = await db
     .select({ id: reports.id })
     .from(reports)
-    .where(and(eq(reports.workspacesId, workspacesId), eq(reports.name, name)))
+    .where(and(eq(reports.workspaceId, workspaceId), eq(reports.name, name)))
     .limit(1);
 
   return created[0].id;
@@ -298,13 +298,13 @@ async function ensureReport({ workspacesId, name, active = true }) {
 
 /**
  * Crea o actualiza un dashboard
- * NUEVO: dashboards pertenecen a reports y tienen superset_id + embedded_id
+ * NUEVO: dashboards pertenecen a reports y tienen instance_id + embedded_id
  */
-async function ensureDashboard({ reportId, supersetId, embeddedId = null, name, active = true }) {
+async function ensureDashboard({ reportId, instanceId, embeddedId = null, name, active = true }) {
   const existing = await db
     .select({ id: dashboards.id })
     .from(dashboards)
-    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.supersetId, supersetId)))
+    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.instanceId, instanceId)))
     .limit(1);
 
   if (existing.length) {
@@ -315,7 +315,7 @@ async function ensureDashboard({ reportId, supersetId, embeddedId = null, name, 
 
   await db.insert(dashboards).values({
     reportId,
-    supersetId,
+    instanceId,
     embeddedId,
     name,
     active,
@@ -324,7 +324,7 @@ async function ensureDashboard({ reportId, supersetId, embeddedId = null, name, 
   const created = await db
     .select({ id: dashboards.id })
     .from(dashboards)
-    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.supersetId, supersetId)))
+    .where(and(eq(dashboards.reportId, reportId), eq(dashboards.instanceId, instanceId)))
     .limit(1);
 
   return created[0].id;
@@ -338,7 +338,7 @@ async function assignDashboardToUser(userId, dashboardId) {
   const existing = await db
     .select({ id: usersDashboards.id, active: usersDashboards.active })
     .from(usersDashboards)
-    .where(and(eq(usersDashboards.idUsers, userId), eq(usersDashboards.dashboardsId, dashboardId)))
+    .where(and(eq(usersDashboards.userId, userId), eq(usersDashboards.dashboardId, dashboardId)))
     .limit(1);
 
   if (existing.length) {
@@ -349,8 +349,8 @@ async function assignDashboardToUser(userId, dashboardId) {
   }
 
   const inserted = await db.insert(usersDashboards).values({
-    idUsers: userId,
-    dashboardsId: dashboardId,
+    userId,
+    dashboardId,
     active: true,
   });
 
@@ -384,8 +384,8 @@ async function findReportByName(name) {
   return result[0] || null;
 }
 
-async function findDashboardBySupersetId(supersetId) {
-  const result = await db.select({ id: dashboards.id }).from(dashboards).where(eq(dashboards.supersetId, supersetId)).limit(1);
+async function findDashboardBySupersetId(instanceId) {
+  const result = await db.select({ id: dashboards.id }).from(dashboards).where(eq(dashboards.instanceId, instanceId)).limit(1);
   return result[0] || null;
 }
 

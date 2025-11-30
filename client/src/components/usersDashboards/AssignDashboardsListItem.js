@@ -43,7 +43,7 @@ const AssignDashboardsListItem = ({
             <Grid item md={2}>
               <ListItemText>
                 <Typography variant='body2' color='textSecondary'>
-                  {dashboard.supersetId || 'N/A'}
+                  {dashboard.instanceId || 'N/A'}
                 </Typography>
               </ListItemText>
             </Grid>

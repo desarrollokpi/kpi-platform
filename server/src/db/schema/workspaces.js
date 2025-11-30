@@ -32,8 +32,8 @@ const accountsInstancesWorkspaces = mysqlTable(
   "accountsInstancesWorkspaces",
   {
     id: int("id").autoincrement().primaryKey(),
-    idAccountsInstances: int("idAccountsInstances").notNull(),
-    idWorkspaces: int("idWorkspaces").notNull(),
+    accountInstanceId: int("accountInstanceId").notNull(),
+    workspaceId: int("workspaceId").notNull(),
     active: boolean("active").notNull().default(true),
     deletedAt: datetime("deletedAt"),
     createdAt: datetime("createdAt")
@@ -46,20 +46,20 @@ const accountsInstancesWorkspaces = mysqlTable(
   },
   (t) => [
     foreignKey({
-      columns: [t.idAccountsInstances],
+      columns: [t.accountInstanceId],
       foreignColumns: [accountsInstances.id],
       name: "aiwAiFK",
     }).onDelete("restrict"),
 
     foreignKey({
-      columns: [t.idWorkspaces],
+      columns: [t.workspaceId],
       foreignColumns: [workspaces.id],
       name: "aiwWsFK",
     }).onDelete("restrict"),
 
-    uniqueIndex("aiwUnique").on(t.idAccountsInstances, t.idWorkspaces),
-    index("aiwAiIdx").on(t.idAccountsInstances),
-    index("aiwWorkspaceIdx").on(t.idWorkspaces),
+    uniqueIndex("aiwUnique").on(t.accountInstanceId, t.workspaceId),
+    index("aiwAiIdx").on(t.accountInstanceId),
+    index("aiwWorkspaceIdx").on(t.workspaceId),
     index("aiwActiveIdx").on(t.active),
   ]
 );

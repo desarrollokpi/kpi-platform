@@ -1,10 +1,15 @@
 const { db } = require("../../database");
 const { eq, and, isNull, sql } = require("drizzle-orm");
 const { instances, accountsInstances, accounts } = require("../db/schema");
+const { handleDbError } = require("../common/dbErrorMapper");
 
 exports.createIntance = async (intanceData) => {
-  const [result] = await db.insert(instances).values(intanceData);
-  return result;
+  try {
+    const [result] = await db.insert(instances).values(intanceData);
+    return result;
+  } catch (error) {
+    handleDbError(error, "Failed to create instance");
+  }
 };
 
 exports.findById = async (id) => {
@@ -35,7 +40,7 @@ exports.findAll = async (options = {}) => {
   }
 
   if (accountId) {
-    conditions.push(eq(accountsInstances.accountsId, accountId));
+    conditions.push(eq(accountsInstances.accountId, accountId));
   }
 
   let query = db
@@ -49,13 +54,11 @@ exports.findAll = async (options = {}) => {
       deletedAt: instances.deletedAt,
       createdAt: instances.createdAt,
       updatedAt: instances.updatedAt,
-      // Keep a single representative accountId for backward compatibility
-      accountId: sql`MIN(${accountsInstances.accountsId})`.as("accountId"),
       // New: comma-separated list of all related accountIds (will be converted to array in services)
-      accountsIdsRaw: sql`GROUP_CONCAT(DISTINCT ${accountsInstances.accountsId})`.as("accountsIdsRaw"),
+      accountsIdsRaw: sql`GROUP_CONCAT(DISTINCT ${accountsInstances.accountId})`.as("accountsIdsRaw"),
     })
     .from(instances)
-    .leftJoin(accountsInstances, and(eq(instances.id, accountsInstances.instancesId), isNull(accountsInstances.deletedAt)))
+    .leftJoin(accountsInstances, and(eq(instances.id, accountsInstances.instanceId), isNull(accountsInstances.deletedAt)))
     .where(and(...conditions))
     .groupBy(instances.id);
 
@@ -80,8 +83,8 @@ exports.getForSelect = async ({ accountId = null }) => {
       .innerJoin(
         accountsInstances,
         and(
-          eq(accountsInstances.instancesId, instances.id),
-          eq(accountsInstances.accountsId, accountId),
+          eq(accountsInstances.instanceId, instances.id),
+          eq(accountsInstances.accountId, accountId),
           isNull(accountsInstances.deletedAt),
           eq(accountsInstances.active, true)
         )
@@ -108,63 +111,93 @@ exports.count = async (activeOnly = false) => {
 };
 
 exports.updateIntance = async (id, data) => {
-  return await db
-    .update(instances)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(instances.id, id));
+  try {
+    return await db
+      .update(instances)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(instances.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to update instance");
+  }
 };
 
 exports.softDelete = async (id) => {
-  return await db.update(instances).set({ active: false, deletedAt: new Date() }).where(eq(instances.id, id));
+  try {
+    return await db.update(instances).set({ active: false, deletedAt: new Date() }).where(eq(instances.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate instance");
+  }
 };
 
 exports.activate = async (id) => {
-  return await db.update(instances).set({ active: true, deletedAt: null }).where(eq(instances.id, id));
+  try {
+    return await db.update(instances).set({ active: true, deletedAt: null }).where(eq(instances.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to activate instance");
+  }
 };
 
-exports.associateAccountIntance = async (accountsId, instancesId) => {
+exports.deactivate = async (id) => {
+  try {
+    return await db.update(instances).set({ active: false, updatedAt: new Date() }).where(eq(instances.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate instance");
+  }
+};
+
+exports.associateAccountIntance = async (accountId, instanceId) => {
   // Check if relation already exists (even if soft-deleted) to avoid unique constraint issues
   const existing = await db
     .select({ id: accountsInstances.id })
     .from(accountsInstances)
-    .where(and(eq(accountsInstances.accountsId, accountsId), eq(accountsInstances.instancesId, instancesId)))
+    .where(and(eq(accountsInstances.accountId, accountId), eq(accountsInstances.instanceId, instanceId)))
     .limit(1);
 
   if (existing.length > 0) {
     // Reactivate existing relation
-    return await db
-      .update(accountsInstances)
-      .set({ active: true, deletedAt: null, updatedAt: new Date() })
-      .where(eq(accountsInstances.id, existing[0].id));
+    try {
+      return await db.update(accountsInstances).set({ active: true, deletedAt: null, updatedAt: new Date() }).where(eq(accountsInstances.id, existing[0].id));
+    } catch (error) {
+      handleDbError(error, "Failed to reactivate account-instance relation");
+    }
   }
 
-  const [result] = await db.insert(accountsInstances).values({
-    accountsId,
-    instancesId,
-  });
-  return result;
+  try {
+    const [result] = await db.insert(accountsInstances).values({
+      accountId,
+      instanceId,
+    });
+    return result;
+  } catch (error) {
+    handleDbError(error, "Failed to associate account and instance");
+  }
 };
 
-exports.deleteInstanceAndAssociations = async (instancesId) => {
-  await db.delete(accountsInstances).where(eq(accountsInstances.instancesId, instancesId));
-  await db.delete(instances).where(eq(instances.id, instancesId));
+exports.deleteInstanceAndAssociations = async (instanceId) => {
+  try {
+    await db.delete(accountsInstances).where(eq(accountsInstances.instanceId, instanceId));
+    await db.delete(instances).where(eq(instances.id, instanceId));
+  } catch (error) {
+    handleDbError(error, "Failed to delete instance and associations");
+  }
 };
 
-exports.findAccountInstancesByInstance = async (instancesId) => {
+exports.findAccountInstancesByInstance = async (instanceId) => {
   return await db
     .select({
       id: accountsInstances.id,
-      accountsId: accountsInstances.accountsId,
+      accountId: accountsInstances.accountId,
     })
     .from(accountsInstances)
-    .where(and(eq(accountsInstances.instancesId, instancesId), isNull(accountsInstances.deletedAt)));
+    .where(and(eq(accountsInstances.instanceId, instanceId), isNull(accountsInstances.deletedAt)));
 };
 
 exports.softDeleteAccountInstance = async (id) => {
-  return await db
-    .update(accountsInstances)
-    .set({ active: false, deletedAt: new Date(), updatedAt: new Date() })
-    .where(eq(accountsInstances.id, id));
+  try {
+    return await db.update(accountsInstances).set({ active: false, deletedAt: new Date(), updatedAt: new Date() }).where(eq(accountsInstances.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to soft delete account-instance relation");
+  }
 };
 
 exports.updateOrCreateAccountInstance = async (instanceId, accountId) => {
@@ -172,24 +205,32 @@ exports.updateOrCreateAccountInstance = async (instanceId, accountId) => {
   const existing = await db
     .select()
     .from(accountsInstances)
-    .where(and(eq(accountsInstances.instancesId, instanceId), isNull(accountsInstances.deletedAt)))
+    .where(and(eq(accountsInstances.instanceId, instanceId), isNull(accountsInstances.deletedAt)))
     .limit(1);
 
   if (existing.length > 0) {
     // Si existe, actualizar el accountId
-    return await db.update(accountsInstances).set({ accountsId: accountId, updatedAt: new Date() }).where(eq(accountsInstances.id, existing[0].id));
+    try {
+      return await db.update(accountsInstances).set({ accountId, updatedAt: new Date() }).where(eq(accountsInstances.id, existing[0].id));
+    } catch (error) {
+      handleDbError(error, "Failed to update account-instance relation");
+    }
   } else {
     // Si no existe, crear una nueva relación
-    const [result] = await db.insert(accountsInstances).values({
-      accountsId: accountId,
-      instancesId: instanceId,
-      active: true,
-    });
-    return result;
+    try {
+      const [result] = await db.insert(accountsInstances).values({
+        accountId,
+        instanceId,
+        active: true,
+      });
+      return result;
+    } catch (error) {
+      handleDbError(error, "Failed to create account-instance relation");
+    }
   }
 };
 
-exports.findInstancesByAccount = async (accountsId) => {
+exports.findInstancesByAccount = async (accountId) => {
   return await db
     .select({
       id: instances.id,
@@ -202,11 +243,11 @@ exports.findInstancesByAccount = async (accountsId) => {
       associationActive: accountsInstances.active,
     })
     .from(accountsInstances)
-    .innerJoin(instances, eq(accountsInstances.instancesId, instances.id))
-    .where(and(eq(accountsInstances.accountsId, accountsId), isNull(accountsInstances.deletedAt), isNull(instances.deletedAt)));
+    .innerJoin(instances, eq(accountsInstances.instanceId, instances.id))
+    .where(and(eq(accountsInstances.accountId, accountId), isNull(accountsInstances.deletedAt), isNull(instances.deletedAt)));
 };
 
-exports.findAccountsByIntance = async (instancesId) => {
+exports.findAccountsByIntance = async (instanceId) => {
   return await db
     .select({
       id: accounts.id,
@@ -218,16 +259,8 @@ exports.findAccountsByIntance = async (instancesId) => {
       associationActive: accountsInstances.active,
     })
     .from(accountsInstances)
-    .innerJoin(
-      accounts,
-      and(eq(accountsInstances.accountsId, accounts.id), isNull(accounts.deletedAt))
-    )
-    .where(
-      and(
-        eq(accountsInstances.instancesId, instancesId),
-        isNull(accountsInstances.deletedAt)
-      )
-    );
+    .innerJoin(accounts, and(eq(accountsInstances.accountId, accounts.id), isNull(accounts.deletedAt)))
+    .where(and(eq(accountsInstances.instanceId, instanceId), isNull(accountsInstances.deletedAt)));
 };
 
 module.exports = exports;

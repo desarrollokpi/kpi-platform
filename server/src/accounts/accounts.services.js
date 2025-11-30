@@ -251,7 +251,7 @@ exports.createContract = async (accountId, contractData) => {
   }
 
   return await accountsRepository.createContract({
-    idAccounts: accountId,
+    accountId,
     ...contractData,
   });
 };

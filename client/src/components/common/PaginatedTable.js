@@ -63,6 +63,7 @@ const DefaultRow = ({ item, headersConfig, actions }) => (
   <TableRow>
     {headersConfig.map((header, index) => {
       const rawValue = getValueFromPath(item, header.key);
+
       let content = "";
 
       if (typeof header.render === "function") {
@@ -144,7 +145,9 @@ const PaginatedTable = ({
 
   const isServerMode = mode === "server" || (onPageChangeCallback && onRowsPerPageChangeCallback);
 
-  const page = isServerMode ? controlledPage : internalPage;
+  // For server mode we treat the external page as 1-based (better UX in query params)
+  // and convert it to 0-based index for MUI TablePagination.
+  const pageIndex = isServerMode ? Math.max(0, (controlledPage || 1) - 1) : internalPage;
   const rowsPerPage = isServerMode ? controlledRowsPerPage : internalRowsPerPage;
   const count = isServerMode ? totalCount : data.length;
 
@@ -159,7 +162,7 @@ const PaginatedTable = ({
       if (typeof sampleValue === "boolean") return "boolean";
       if (typeof sampleValue === "number") return "number";
       if (sampleValue instanceof Date) return "date";
-      if (typeof sampleValue === "string" && !Number.isNaN(Date.parse(sampleValue))) return "date";
+      // if (typeof sampleValue === "string" && !Number.isNaN(Date.parse(sampleValue))) return "date";
 
       return "string";
     };
@@ -241,11 +244,12 @@ const PaginatedTable = ({
     return resolvedHeaders;
   }, [headers, data, matchMd]);
 
-  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - count) : 0;
+  const emptyRows = pageIndex > 0 ? Math.max(0, (1 + pageIndex) * rowsPerPage - count) : 0;
 
   const handleChangePage = (event, newPage) => {
     if (isServerMode) {
-      onPageChangeCallback(newPage);
+      // Convert 0-based index from TablePagination back to 1-based page
+      onPageChangeCallback(newPage + 1);
     } else {
       setInternalPage(newPage);
     }
@@ -265,7 +269,7 @@ const PaginatedTable = ({
     ? data
     : showPagination
     ? rowsPerPage > 0
-      ? data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+      ? data.slice(pageIndex * rowsPerPage, pageIndex * rowsPerPage + rowsPerPage)
       : data
     : data;
 
@@ -312,7 +316,7 @@ const PaginatedTable = ({
                 colSpan={totalColumns}
                 count={count}
                 rowsPerPage={rowsPerPage}
-                page={page}
+                page={pageIndex}
                 labelRowsPerPage={"Elementos por página"}
                 slotProps={{
                   select: {

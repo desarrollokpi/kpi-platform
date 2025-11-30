@@ -8,7 +8,10 @@ exports.createDashboard = async (req, res, next) => {
     }
 
     const dashboard = await dashboardsServices.createDashboard(req.body, userId);
-    res.status(201).json(dashboard);
+    res.status(201).json({
+      message: "Dashboard vinculado exitosamente",
+      dashboard,
+    });
   } catch (error) {
     next(error);
   }
@@ -21,7 +24,12 @@ exports.getAllDashboards = async (req, res, next) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const { active, limit, offset, reportId, accountId } = req.query;
+    const { active, limit, offset, reportId, accountId, mode } = req.query;
+
+    if (mode === "select") {
+      const list = await dashboardsServices.getDashboardsForSelect();
+      return res.json(list);
+    }
 
     const options = {};
 
@@ -98,7 +106,10 @@ exports.updateDashboard = async (req, res, next) => {
     const { id } = req.params;
     const dashboard = await dashboardsServices.updateDashboard(parseInt(id), req.body, userId);
 
-    res.json(dashboard);
+    res.json({
+      message: "Dashboard actualizado exitosamente",
+      dashboard,
+    });
   } catch (error) {
     next(error);
   }
@@ -115,6 +126,44 @@ exports.deleteDashboard = async (req, res, next) => {
     await dashboardsServices.softDeleteDashboard(parseInt(id), userId);
 
     res.json({ success: true, message: "Dashboard deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.activateDashboard = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { id } = req.params;
+    const dashboard = await dashboardsServices.activateDashboard(parseInt(id, 10));
+
+    res.json({
+      message: "Dashboard activado exitosamente",
+      dashboard,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deactivateDashboard = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const { id } = req.params;
+    const dashboard = await dashboardsServices.deactivateDashboard(parseInt(id, 10));
+
+    res.json({
+      message: "Dashboard desactivado exitosamente",
+      dashboard,
+    });
   } catch (error) {
     next(error);
   }
@@ -266,12 +315,10 @@ exports.exportDashboardToCsv = async (req, res, next) => {
 
     const { id } = req.params;
     const exportService = require("./dashboards.export.service");
-    const { csv, filename, contentType } = await exportService.exportDashboardDataToCsv(parseInt(id), userId);
+    const { files } = await exportService.exportDashboardDataToCsv(parseInt(id, 10), userId);
 
-    // Set headers for CSV download
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.send(csv);
+    // Return JSON with multiple CSV files (one per dataset)
+    res.json({ files });
   } catch (error) {
     next(error);
   }

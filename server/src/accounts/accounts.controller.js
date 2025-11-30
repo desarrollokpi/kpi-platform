@@ -39,7 +39,7 @@ exports.getAccountById = async (req, res, next) => {
 
     // Check if user is tenant admin trying to access another account
     const isRootAdmin = await rolesRepository.userHasRole(userId, ROLE_NAMES.ROOT_ADMIN);
-    if (!isRootAdmin && requestingUser.accountsId !== parseInt(id)) {
+    if (!isRootAdmin && requestingUser.accountId !== parseInt(id, 10)) {
       return res.status(403).json({
         error: "No tienes permisos para acceder a esta cuenta",
       });
@@ -89,9 +89,11 @@ exports.getAccountWorkspaces = async (req, res, next) => {
 
 exports.getAllAccounts = async (req, res, next) => {
   try {
-    const { active, limit, offset, listed = "false" } = req.query;
+    const { active, limit, offset, listed = "false", mode } = req.query;
 
-    if (listed === "true") {
+    const isSelectMode = mode === "select" || listed === "true";
+
+    if (isSelectMode) {
       const list = await accountsServices.getAccountsForSelect();
       return res.json(list);
     }

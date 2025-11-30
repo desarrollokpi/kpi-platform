@@ -1,6 +1,7 @@
 const { db } = require("../../database");
-const { eq, and, or, isNull } = require("drizzle-orm");
+const { eq, and, isNull } = require("drizzle-orm");
 const { users, usersRoles, roles, accounts } = require("../db/schema");
+const { handleDbError } = require("../common/dbErrorMapper");
 
 exports.findUserForAuthentication = async (identifier) => {
   const rows = await db
@@ -9,7 +10,7 @@ exports.findUserForAuthentication = async (identifier) => {
       userName: users.userName,
       mail: users.mail,
       password: users.password,
-      accountsId: users.accountsId,
+      accountId: users.accountId,
       active: users.active,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
@@ -22,10 +23,10 @@ exports.findUserForAuthentication = async (identifier) => {
       roleName: roles.name,
     })
     .from(users)
-    .leftJoin(accounts, eq(users.accountsId, accounts.id))
-    .leftJoin(usersRoles, eq(users.id, usersRoles.usersId))
-    .leftJoin(roles, eq(usersRoles.rolesId, roles.id))
-    .where(and(or(eq(users.userName, identifier), eq(users.mail, identifier)), isNull(users.deletedAt)));
+    .leftJoin(accounts, eq(users.accountId, accounts.id))
+    .leftJoin(usersRoles, eq(users.id, usersRoles.userId))
+    .leftJoin(roles, eq(usersRoles.roleId, roles.id))
+    .where(and(eq(users.mail, identifier), isNull(users.deletedAt)));
 
   if (!rows.length) {
     return null;
@@ -44,7 +45,7 @@ exports.findUserForAuthentication = async (identifier) => {
     userName: base.userName,
     mail: base.mail,
     password: base.password,
-    accountsId: base.accountsId,
+    accountId: base.accountId,
     active: base.active,
     createdAt: base.createdAt,
     updatedAt: base.updatedAt,
@@ -63,7 +64,7 @@ exports.getUserSessionInfo = async (userId) => {
       id: users.id,
       userName: users.userName,
       mail: users.mail,
-      accountsId: users.accountsId,
+      accountId: users.accountId,
       active: users.active,
       accountId: accounts.id,
       accountName: accounts.name,
@@ -73,9 +74,9 @@ exports.getUserSessionInfo = async (userId) => {
       roleName: roles.name,
     })
     .from(users)
-    .leftJoin(accounts, eq(users.accountsId, accounts.id))
-    .leftJoin(usersRoles, eq(users.id, usersRoles.usersId))
-    .leftJoin(roles, eq(usersRoles.rolesId, roles.id))
+    .leftJoin(accounts, eq(users.accountId, accounts.id))
+    .leftJoin(usersRoles, eq(users.id, usersRoles.userId))
+    .leftJoin(roles, eq(usersRoles.roleId, roles.id))
     .where(and(eq(users.id, userId), isNull(users.deletedAt)));
 
   if (!rows.length) {
@@ -94,7 +95,6 @@ exports.getUserSessionInfo = async (userId) => {
     id: base.id,
     userName: base.userName,
     mail: base.mail,
-    accountsId: base.accountsId,
     active: base.active,
     accountId: base.accountId,
     accountName: base.accountName,
@@ -105,7 +105,11 @@ exports.getUserSessionInfo = async (userId) => {
 };
 
 exports.updateLastLogin = async (userId) => {
-  await db.update(users).set({ updatedAt: new Date() }).where(eq(users.id, userId));
+  try {
+    await db.update(users).set({ updatedAt: new Date() }).where(eq(users.id, userId));
+  } catch (error) {
+    handleDbError(error, "Failed to update last login");
+  }
 };
 
 module.exports = exports;

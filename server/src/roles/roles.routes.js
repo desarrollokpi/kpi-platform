@@ -8,7 +8,6 @@ const { ROLE_NAMES } = require("../constants/roles");
 router.use(hasToken);
 router.use(roleAuth([ROLE_NAMES.ROOT_ADMIN]));
 
-router.get("/select", rolesController.getRolesForSelect);
 router.get("/root-admins/users", rolesController.getRootAdmins);
 router.get("/tenant-admins/users", rolesController.getTenantAdmins);
 router.get("/user/:userId", rolesController.getUserRoles);

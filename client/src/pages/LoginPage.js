@@ -63,8 +63,8 @@ const LoginPage = () => {
         <Grid item xs={12} md={5} lg={4} p={2}>
           <Paper className="login">
             <Grid container alignItems="center" component="form" onSubmit={handleLogin}>
-              <FormField label="Usuario">
-                <FormField.TextField {...bindField("identifier")} />
+              <FormField label="Correo electrónico">
+                <FormField.TextField type="email" autoComplete="email" {...bindField("identifier")} />
               </FormField>
 
               <FormField label="Contraseña">

@@ -96,7 +96,7 @@ services:
       - ./server/migrations:/app/migrations
     environment:
       SEED_ENV: /app/config/.env.dev
-    command: ["sh", "-c", "pnpm run db:generate && pnpm run db:push --force && pnpm run seed:base && pnpm run seed:demo"]
+    command: ["sh", "-c", "pnpm run db:generate && pnpm run db:push --force && pnpm run seed:base"]
     restart: "no"
 
 volumes:

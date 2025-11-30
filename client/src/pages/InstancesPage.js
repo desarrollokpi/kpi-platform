@@ -1,5 +1,5 @@
 import React from "react";
-import { Paper, Typography, Box } from "@mui/material";
+import { Paper, Typography, Box, Grid, Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useNavigate } from "react-router-dom";
 
@@ -12,9 +12,21 @@ const InstancesPage = () => {
   const navigate = useNavigate();
 
   const handleCreate = () => {
-    const prefix = isSuperuser ? "superusers" : "admins";
-    navigate(`/${prefix}/instances/create`);
+    navigate(`/superusers/instances/create`);
   };
+
+  if (!isSuperuser) {
+    return (
+      <Paper className="container">
+        <Typography variant="h6" align="center" color="error">
+          Solo el superusuario puede gestionar instancias de Superset.
+        </Typography>
+        <Grid container justifyContent="center" mt={3}>
+          <Button onClick={() => navigate("/")}>Volver al inicio</Button>
+        </Grid>
+      </Paper>
+    );
+  }
 
   return (
     <Paper className="container">

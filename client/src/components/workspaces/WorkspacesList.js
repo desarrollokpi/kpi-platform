@@ -17,8 +17,8 @@ const WorkspacesList = () => {
 
   const [page, setPage] = useState(() => {
     const pageParam = searchParams.get("page");
-    const parsed = pageParam ? parseInt(pageParam, 10) : 0;
-    return Number.isNaN(parsed) ? 0 : parsed;
+    const parsed = pageParam ? parseInt(pageParam, 10) : 1;
+    return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
   });
   const [rowsPerPage, setRowsPerPage] = useState(() => {
     const rppParam = searchParams.get("rowsPerPage");
@@ -76,7 +76,7 @@ const WorkspacesList = () => {
 
   const handleRowsPerPageChange = useCallback((newRowsPerPage) => {
     setRowsPerPage(newRowsPerPage);
-    setPage(0);
+    setPage(1);
   }, []);
 
   const handleSwitchChange = useCallback((event) => {
@@ -100,7 +100,7 @@ const WorkspacesList = () => {
       getAllWorkspaces({
         active: activeFilter,
         limit: rowsPerPage,
-        offset: page * rowsPerPage,
+        offset: (page - 1) * rowsPerPage,
         accountId: user?.accountId || null,
       })
     );

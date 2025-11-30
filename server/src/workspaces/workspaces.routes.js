@@ -16,6 +16,7 @@ router.put("/:id", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_
 router.delete("/:id", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), workspacesController.deleteWorkspace);
 
 router.post("/:id/activate", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), workspacesController.activateWorkspace);
+router.post("/:id/deactivate", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), workspacesController.deactivateWorkspace);
 
 router.get("/account/:accountId", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), workspacesController.getWorkspacesByAccount);
 

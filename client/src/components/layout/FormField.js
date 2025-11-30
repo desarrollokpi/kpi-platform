@@ -11,11 +11,11 @@ import ListItemText from "@mui/material/ListItemText";
 
 const TextField = (props) => <MuiTextField margin="normal" fullWidth variant="outlined" {...props} />;
 
-const Select = ({ options, optionValue, display, loading, ...props }) => {
+const Select = ({ options, optionValue = "value", display = "label", loading, ...props }) => {
   return (
     <MuiTextField margin="normal" disabled={loading} select fullWidth {...props}>
       {options?.map((option) => (
-        <MenuItem key={option.id} value={option[optionValue]}>
+        <MenuItem key={option[optionValue]} value={option[optionValue]}>
           {option[display]}
         </MenuItem>
       ))}
@@ -23,23 +23,32 @@ const Select = ({ options, optionValue, display, loading, ...props }) => {
   );
 };
 
-const SelectMultiple = ({ options, display, checked, optionValue, onChange, ...props }) => (
-  <MuiSelect
-    margin="normal"
-    multiple
-    fullWidth
-    value={optionValue}
-    onChange={onChange}
-    renderValue={(selected) => selected.filter((s) => s).join(", ")}
-    {...props}
-  >
-    {options.map((option) => (
-      <MenuItem key={option.id} value={option[display]}>
-        <ListItemText>{option[display]}</ListItemText>
-      </MenuItem>
-    ))}
-  </MuiSelect>
-);
+const SelectMultiple = ({ options = [], display = "label", value, onChange, valueList = "value", ...props }) => {
+  const safeValue = Array.isArray(value) ? value : [];
+  const labelsById = new Map(options.map((option) => [option[valueList], option[display]]));
+  return (
+    <MuiSelect
+      margin="normal"
+      multiple
+      fullWidth
+      value={safeValue}
+      onChange={onChange}
+      renderValue={(selected) =>
+        (selected || [])
+          .map((id) => labelsById.get(id))
+          .filter(Boolean)
+          .join(", ")
+      }
+      {...props}
+    >
+      {options.map((option) => (
+        <MenuItem key={option[valueList]} value={option[valueList]}>
+          <ListItemText>{option[display]}</ListItemText>
+        </MenuItem>
+      ))}
+    </MuiSelect>
+  );
+};
 
 const FormField = ({ label, children, loading, ...props }) => {
   return (

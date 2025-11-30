@@ -21,6 +21,9 @@ router.put("/:id", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), d
 
 router.delete("/:id", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), dashboardsController.deleteDashboard);
 
+router.post("/:id/activate", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), dashboardsController.activateDashboard);
+router.post("/:id/deactivate", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), dashboardsController.deactivateDashboard);
+
 router.get("/:id/embedInfo", dashboardsController.getDashboardEmbedInfo);
 
 router.get("/:id/users", roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), dashboardsController.getDashboardUsers);

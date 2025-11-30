@@ -47,6 +47,13 @@ router.post(
   instancesController.activateIntance
 );
 
+router.post(
+  "/:id/deactivate",
+  hasToken,
+  roleAuth([ROLE_NAMES.ROOT_ADMIN]),
+  instancesController.deactivateIntance
+);
+
 router.get(
   "/account/:accountId",
   hasToken,

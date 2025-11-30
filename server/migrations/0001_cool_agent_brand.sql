@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD CONSTRAINT `accounts_subDomain_unique` UNIQUE(`subDomain`);

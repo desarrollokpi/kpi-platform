@@ -39,7 +39,7 @@ const Footer = () => {
                 <Typography align='center' variant='caption' color='primary'>
                   Powered by:
                 </Typography>
-                <img src={kpiManagersLogo} width='120' alt='KPI Managers' />
+                <img src={kpiManagersLogo} width='140' alt='KPI Managers' />
               </Stack>
             </Grid>
             <Grid item md={2} xs={6}>

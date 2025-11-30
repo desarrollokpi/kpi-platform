@@ -44,18 +44,18 @@ async function deleteDemoData() {
   logger.info(`Found ${accountIds.length} demo accounts to delete`);
 
   // 2. Find demo users
-  const demoUsers = await db.select({ id: users.id }).from(users).where(inArray(users.accountsId, accountIds));
+  const demoUsers = await db.select({ id: users.id }).from(users).where(inArray(users.accountId, accountIds));
 
   const userIds = demoUsers.map((user) => user.id);
   logger.info(`Found ${userIds.length} demo users`);
 
   // 3. Delete user-dashboard assignments
   if (userIds.length) {
-    await db.delete(usersDashboards).where(inArray(usersDashboards.idUsers, userIds));
+    await db.delete(usersDashboards).where(inArray(usersDashboards.userId, userIds));
     logger.success("Deleted user dashboard assignments");
 
     // 4. Delete user-role assignments
-    await db.delete(usersRoles).where(inArray(usersRoles.usersId, userIds));
+    await db.delete(usersRoles).where(inArray(usersRoles.userId, userIds));
     logger.success("Deleted user role assignments");
 
     // 5. Delete demo users
@@ -64,17 +64,17 @@ async function deleteDemoData() {
   }
 
   // 6. Delete account-workspace-instance links
-  const accountIntanceLinks = await db.select({ id: accountsInstances.id }).from(accountsInstances).where(inArray(accountsInstances.accountsId, accountIds));
+  const accountIntanceLinks = await db.select({ id: accountsInstances.id }).from(accountsInstances).where(inArray(accountsInstances.accountId, accountIds));
 
   const accountIntanceIds = accountIntanceLinks.map((link) => link.id);
 
   if (accountIntanceIds.length) {
-    await db.delete(accountsInstancesWorkspaces).where(inArray(accountsInstancesWorkspaces.idAccountsInstances, accountIntanceIds));
+    await db.delete(accountsInstancesWorkspaces).where(inArray(accountsInstancesWorkspaces.accountInstanceId, accountIntanceIds));
     logger.success("Deleted account-workspace links");
   }
 
   // 7. Delete account-intance links
-  await db.delete(accountsInstances).where(inArray(accountsInstances.accountsId, accountIds));
+  await db.delete(accountsInstances).where(inArray(accountsInstances.accountId, accountIds));
   logger.success("Deleted account-intance links");
 
   // 8. Delete demo accounts
@@ -88,7 +88,7 @@ async function deleteDemoData() {
 
   if (workspaceIds.length) {
     // Delete reports that belong to demo workspaces
-    const demoReports = await db.select({ id: reports.id }).from(reports).where(inArray(reports.workspacesId, workspaceIds));
+    const demoReports = await db.select({ id: reports.id }).from(reports).where(inArray(reports.workspaceId, workspaceIds));
 
     const reportIds = demoReports.map((report) => report.id);
 
@@ -100,7 +100,7 @@ async function deleteDemoData() {
 
       if (dashboardIds.length) {
         // Delete user-dashboard assignments
-        await db.delete(usersDashboards).where(inArray(usersDashboards.dashboardsId, dashboardIds));
+        await db.delete(usersDashboards).where(inArray(usersDashboards.dashboardId, dashboardIds));
         logger.success("Deleted dashboard assignments");
 
         // Delete dashboards
@@ -114,7 +114,7 @@ async function deleteDemoData() {
     }
 
     // Delete workspace-account-intance links
-    await db.delete(accountsInstancesWorkspaces).where(inArray(accountsInstancesWorkspaces.idWorkspaces, workspaceIds));
+    await db.delete(accountsInstancesWorkspaces).where(inArray(accountsInstancesWorkspaces.workspaceId, workspaceIds));
 
     // Delete workspaces
     await db.delete(workspaces).where(inArray(workspaces.id, workspaceIds));
@@ -127,7 +127,7 @@ async function deleteDemoData() {
   const intanceIds = demoInstances.map((instance) => instance.id);
 
   if (intanceIds.length) {
-    await db.delete(accountsInstances).where(inArray(accountsInstances.instancesId, intanceIds));
+    await db.delete(accountsInstances).where(inArray(accountsInstances.instanceId, intanceIds));
     await db.delete(instances).where(inArray(instances.id, intanceIds));
     logger.success("Deleted demo Superset instances (instances)");
   }

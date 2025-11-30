@@ -35,10 +35,10 @@ const accountsInstances = mysqlTable(
   "accountsInstances",
   {
     id: int("id").autoincrement().primaryKey(),
-    accountsId: int("accountsId")
+    accountId: int("accountId")
       .notNull()
       .references(() => accounts.id, { onDelete: "restrict" }),
-    instancesId: int("instancesId")
+    instanceId: int("instanceId")
       .notNull()
       .references(() => instances.id, { onDelete: "restrict" }),
     active: boolean("active").notNull().default(true),
@@ -51,7 +51,7 @@ const accountsInstances = mysqlTable(
       .default(sql`now()`)
       .$onUpdate(() => new Date()),
   },
-  (t) => [uniqueIndex("aiUnique").on(t.accountsId, t.instancesId), index("aiAccountIdx").on(t.accountsId), index("aiIntanceIdx").on(t.instancesId)]
+  (t) => [uniqueIndex("aiUnique").on(t.accountId, t.instanceId), index("aiAccountIdx").on(t.accountId), index("aiIntanceIdx").on(t.instanceId)]
 );
 
 module.exports = { instances, accountsInstances };

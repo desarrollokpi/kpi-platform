@@ -11,6 +11,7 @@ router.get("/:id", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_
 router.put("/:id", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), reportsController.updateReport);
 router.delete("/:id", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), reportsController.deleteReport);
 router.post("/:id/activate", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), reportsController.activateReport);
+router.post("/:id/deactivate", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), reportsController.deactivateReport);
 router.get("/workspace/:workspaceId", hasToken, roleAuth([ROLE_NAMES.ROOT_ADMIN, ROLE_NAMES.TENANT_ADMIN]), reportsController.getReportsByWorkspace);
 
 module.exports = router;

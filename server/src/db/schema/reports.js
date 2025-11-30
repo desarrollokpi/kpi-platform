@@ -10,7 +10,7 @@ const reports = mysqlTable(
   "reports",
   {
     id: int("id").autoincrement().primaryKey(),
-    workspacesId: int("workspacesId")
+    workspaceId: int("workspaceId")
       .notNull()
       .references(() => workspaces.id, { onDelete: "restrict" }),
     name: varchar("name", { length: 100 }).notNull(),
@@ -24,7 +24,7 @@ const reports = mysqlTable(
       .default(sql`now()`)
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("reportsWorkspaceIdx").on(t.workspacesId), index("reportsActiveIdx").on(t.active)]
+  (t) => [index("reportsWorkspaceIdx").on(t.workspaceId), index("reportsActiveIdx").on(t.active)]
 );
 
 module.exports = { reports };

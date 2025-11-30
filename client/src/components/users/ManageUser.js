@@ -1,19 +1,21 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Grid, Paper, Button, Typography } from "@mui/material";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
 
 import useForm from "../../hooks/useForm";
-import useToggle from "../../hooks/useToggle";
 import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
 import useSuperuser from "../../hooks/useSuperuser";
 import useAdmin from "../../hooks/useAdmin";
+import useAccountId from "../../hooks/useAccountId";
 
 import { createUser, getAccountsLists, getRoleLists, updateUser } from "../../state/users/usersActions";
 
 import ManageUserForm from "./ManageUserForm";
 import CircularLoading from "../layout/CircularLoading";
+
+const COLUMNS = ["userName", "name", "mail", "confirmMail", "password", "confirmPassword", "accountId", "roleId"];
 
 const ManageUser = () => {
   const dispatch = useDispatch();
@@ -24,27 +26,9 @@ const ManageUser = () => {
   const { isAdmin } = useAdmin();
 
   const { users, loading, accountsList, rolesList } = useSelector(({ users }) => users, shallowEqual);
-  const { user: currentUser } = useSelector(({ auth }) => auth, shallowEqual);
-
-  const accountId = useMemo(() => currentUser?.accountId || null, [currentUser]);
+  const accountId = useAccountId();
 
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
-
-  const initialState = useMemo(
-    () => ({
-      userName: "",
-      name: "",
-      mail: "",
-      confirmMail: "",
-      password: "",
-      confirmPassword: "",
-      accountId: accountId || "",
-      roleId: "",
-    }),
-    [accountId]
-  );
-
-  const allowEmptyFields = useMemo(() => (isSuperuser ? ["accountId"] : []), [isSuperuser]);
 
   const thisUser = useMemo(() => {
     if (!userId) return undefined;
@@ -61,14 +45,14 @@ const ManageUser = () => {
       ...found,
       confirmMail: found.mail,
       roleId: primaryRoleId,
-      accountId: found.accountsId ?? "",
+      accountId: found.accountId ?? "",
     };
   }, [userId, users]);
 
   const rolesForForm = useMemo(() => {
     if (!rolesList) return rolesList;
 
-    const editingUserHasAccount = Boolean(userId) && thisUser && thisUser.accountId !== null && thisUser.accountId !== undefined;
+    const editingUserHasAccount = (Boolean(userId) && thisUser && !!thisUser.accountId) || isAdmin;
 
     if (editingUserHasAccount) {
       return rolesList.filter((role) => role.labelRaw !== "root_admin");
@@ -79,18 +63,36 @@ const ManageUser = () => {
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/users`);
 
-  const [formValues, bindField, areFieldsEmpty, setFields] = useForm(initialState, { allowEmpty: allowEmptyFields });
+  const formData = useMemo(
+    () =>
+      COLUMNS.reduce((acc, column) => {
+        if (column === "roleId") {
+          const primaryRoleId = Array.isArray(thisUser?.roles) && thisUser.roles[0]?.id ? thisUser.roles[0].id : "";
+          acc.roleId = primaryRoleId || "";
+          return acc;
+        }
 
-  useEffect(() => {
-    if (userId && thisUser) {
-      setFields(thisUser);
-    }
-  }, [userId, thisUser, setFields]);
+        if (column === "accountId" && isAdmin) {
+          acc.accountId = accountId;
+          return acc;
+        }
 
-  const [active, handleSwitchChange] = useToggle(userId ? Boolean(thisUser?.active) : true);
+        acc[column] = thisUser?.[column] ?? "";
+        return acc;
+      }, {}),
+    [thisUser]
+  );
 
-  const handleManageUser = () => {
-    let userData = { ...formValues, active };
+  const allowEmptyFields = useMemo(() => {
+    const fields = userId ? ["password", "confirmPassword"] : [];
+    if (isSuperuser) fields.push("accountId");
+    return fields;
+  }, [isSuperuser, userId]);
+
+  const [formValues, bindField, areFieldsEmpty] = useForm(formData, { allowEmpty: allowEmptyFields });
+
+  const handleManageUser = async () => {
+    let userData = { ...formValues };
 
     if (isAdmin && accountId) {
       userData = { ...userData, accountId };
@@ -103,10 +105,11 @@ const ManageUser = () => {
       userData.accountId = null;
     }
 
-    const action = userId ? updateUser(userId, userData) : createUser(userData);
+    const action = await dispatch(userId ? updateUser(userId, userData) : createUser(userData));
 
-    dispatch(action);
-    buttonHasBeenClicked();
+    if (action) {
+      buttonHasBeenClicked();
+    }
   };
 
   useEffect(() => {
@@ -137,7 +140,7 @@ const ManageUser = () => {
     );
   }
 
-  if (isAdmin && userId && thisUser && thisUser.accountsId !== accountId) {
+  if (isAdmin && userId && thisUser && thisUser.accountId !== accountId) {
     return (
       <Paper className="container">
         <Typography variant="h6" align="center" color="error">
@@ -152,15 +155,7 @@ const ManageUser = () => {
 
   return (
     <Paper className="container">
-      <ManageUserForm
-        userId={userId}
-        bindField={bindField}
-        active={active}
-        handleSwitchChange={handleSwitchChange}
-        isSuperuser={isSuperuser}
-        accounts={accountsList}
-        roles={rolesForForm}
-      />
+      <ManageUserForm userId={userId} bindField={bindField} isSuperuser={isSuperuser} accounts={accountsList} roles={rolesForForm} roleId={thisUser?.roleId} />
 
       <Grid mt={3} container justifyContent="space-between">
         <Button onClick={() => navigate(`/${prefixRoute}/users`)}>Cancelar</Button>

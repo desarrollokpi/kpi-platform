@@ -63,7 +63,7 @@ const ApplicationBar = () => {
     <AppBar position="sticky" color="light">
       <Toolbar>
         <Box sx={{ flexGrow: 1 }}>
-          {appBarLogo && <Image src={appBarLogo} alt="logo" width={matchesLg ? undefined : 120} style={{ maxHeight: "70px", objectFit: "contain" }} />}
+          {appBarLogo && <Image src={appBarLogo} alt="logo" width={matchesLg ? undefined : 120} style={{ maxHeight: "40px", objectFit: "contain" }} />}
         </Box>
 
         {isLoggedIn && (

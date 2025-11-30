@@ -2,10 +2,10 @@ const reportsServices = require("./reports.services");
 
 exports.createReport = async (req, res, next) => {
   try {
-    const { workspacesId, name, active } = req.body;
+    const { workspaceId, name, active } = req.body;
 
     const report = await reportsServices.createReport({
-      workspacesId,
+      workspaceId,
       name,
       active,
     });
@@ -33,9 +33,11 @@ exports.getReportById = async (req, res, next) => {
 
 exports.getAllReports = async (req, res, next) => {
   try {
-    const { active, limit, offset, listed = "false", accountId } = req.query;
+    const { active, limit, offset, listed = "false", mode, accountId } = req.query;
 
-    if (listed === "true") {
+    const isSelectMode = mode === "select" || listed === "true";
+
+    if (isSelectMode) {
       const list = await reportsServices.getReportsForSelect();
       return res.json(list);
     }
@@ -59,10 +61,10 @@ exports.getAllReports = async (req, res, next) => {
 exports.updateReport = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { workspacesId, name, active } = req.body;
+    const { workspaceId, name, active } = req.body;
 
     const report = await reportsServices.updateReport(parseInt(id), {
-      workspacesId,
+      workspaceId,
       name,
       active,
     });
@@ -98,6 +100,21 @@ exports.activateReport = async (req, res, next) => {
 
     res.json({
       message: "Reporte activado exitosamente",
+      report,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deactivateReport = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const report = await reportsServices.deactivateReport(parseInt(id));
+
+    res.json({
+      message: "Reporte desactivado exitosamente",
       report,
     });
   } catch (error) {

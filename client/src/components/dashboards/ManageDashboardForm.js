@@ -1,8 +1,8 @@
 import React from "react";
-import { Typography, Switch, Grid, Alert } from "@mui/material";
+import { Typography, Grid, Alert } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageDashboardForm = ({ dashboardId, bindField, active, handleSwitchChange, reports = [], dashboards = [], isAdmin, reportId }) => {
+const ManageDashboardForm = ({ dashboardId, bindField, reports = [], dashboards = [], isAdmin, reportId }) => {
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -31,10 +31,6 @@ const ManageDashboardForm = ({ dashboardId, bindField, active, handleSwitchChang
             <FormField.Select {...bindField("apacheId")} options={dashboards} optionValue="value" display="label" helperText="Dashboard a asociar" />
           </FormField>
         )}
-
-        <FormField label="Dashboard Activo" mt={2}>
-          <Switch checked={active} onChange={handleSwitchChange} />
-        </FormField>
       </Grid>
 
       <Grid item xs={12}>

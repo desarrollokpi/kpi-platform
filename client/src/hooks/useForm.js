@@ -59,27 +59,40 @@ const useForm = (initialState = {}, options = {}) => {
     [allowEmpty]
   );
 
-  const areFieldsEmpty = useMemo(() => {
-    if (!fields || typeof fields !== "object") return true;
+  const missingRequiredFields = useMemo(() => {
+    if (!fields || typeof fields !== "object") return [];
 
-    return Object.entries(fields).some(([name, fieldValue]) => {
+    const missing = [];
+
+    Object.entries(fields).forEach(([name, fieldValue]) => {
       if (isFieldAllowedEmpty(name, fieldValue, fields)) {
-        return false;
+        return;
       }
 
-      if (fieldValue == null) return true;
+      if (fieldValue == null) {
+        missing.push(name);
+        return;
+      }
 
       if (typeof fieldValue === "string") {
-        return fieldValue.trim() === "";
+        if (fieldValue.trim() === "") {
+          missing.push(name);
+        }
+        return;
       }
 
       if (Array.isArray(fieldValue)) {
-        return fieldValue.length === 0;
+        if (fieldValue.length === 0) {
+          missing.push(name);
+        }
+        return;
       }
-
-      return false;
     });
+
+    return missing;
   }, [fields, isFieldAllowedEmpty]);
+
+  const areFieldsEmpty = useMemo(() => missingRequiredFields.length > 0, [missingRequiredFields]);
 
   const bindField = useCallback(
     (name) => ({
@@ -90,7 +103,9 @@ const useForm = (initialState = {}, options = {}) => {
     [fields, onChange]
   );
 
-  return [fields, bindField, areFieldsEmpty, setFields];
+  // Return missingRequiredFields as the 5th item so callers that need
+  // more granular feedback can use it without breaking existing usage.
+  return [fields, bindField, areFieldsEmpty, setFields, missingRequiredFields];
 };
 
 export default useForm;

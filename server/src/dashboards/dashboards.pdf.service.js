@@ -44,7 +44,7 @@ exports.generateDashboardPdf = async (dashboardId, userId) => {
       doc.text(`Instance: ${dashboardInfo.instanceName}`);
       doc.moveDown();
       doc.fontSize(10).text(`Generated: ${new Date().toLocaleString()}`);
-      doc.text(`Superset ID: ${dashboardInfo.supersetId}`);
+      doc.text(`Instance ID: ${dashboardInfo.instanceId}`);
       doc.moveDown(2);
 
       doc.fontSize(10).fillColor("red").text("⚠️  This is a placeholder PDF", { align: "center" });

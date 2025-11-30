@@ -5,14 +5,16 @@ import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
 
 import useForm from "../../hooks/useForm";
-import useToggle from "../../hooks/useToggle";
 import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
 import useSuperuser from "../../hooks/useSuperuser";
+import useAccountId from "../../hooks/useAccountId";
 
 import { createInstance, getAccountsLists, updateInstance } from "../../state/instances/instancesActions";
 
 import ManageInstanceForm from "./ManageInstanceForm";
 import CircularLoading from "../layout/CircularLoading";
+
+const COLUMNS = ["name", "baseUrl", "apiUserName", "apiPassword", "accountIds"];
 
 const ManageInstance = () => {
   const dispatch = useDispatch();
@@ -21,70 +23,56 @@ const ManageInstance = () => {
   const { isSuperuser } = useSuperuser();
 
   const { instances, accountsList, loading } = useSelector(({ instances }) => instances, shallowEqual);
-
-  const { user } = useSelector(({ auth }) => auth, shallowEqual);
-
-  const accountId = useMemo(() => user?.accountId ?? null, [user]);
-
+  const accountId = useAccountId();
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
-  const initialState = useMemo(
-    () => ({
-      name: "",
-      baseUrl: "",
-      apiUserName: "",
-      apiPassword: "",
-      accountsId: accountId ? [accountId] : [],
-    }),
-    [accountId]
-  );
-
-  const thisInstance = useMemo(() => {
-    if (!instanceId) return undefined;
+  const thisInfo = useMemo(() => {
+    if (!instanceId) return null;
 
     const id = Number.parseInt(instanceId, 10);
-    if (Number.isNaN(id)) return undefined;
+    if (Number.isNaN(id)) return null;
 
-    const found = instances.find((instance) => instance.id === id);
-    if (!found) return undefined;
+    return instances.find((instance) => instance.id === id) || null;
+  }, [instanceId, instances]);
 
-    const rawAccounts = Array.isArray(found.accountsId) ? found.accountsId : [];
+  const formData = useMemo(
+    () =>
+      COLUMNS.reduce((acc, column) => {
+        if (column === "accountIds") {
+          acc.accountIds = Array.isArray(thisInfo?.accountIds) ? thisInfo.accountIds.filter((id) => id != null) : accountId ? [accountId] : [];
+          return acc;
+        }
 
-    const accounts = rawAccounts
-      .filter(Boolean)
-      .map((accountValue) => {
-        const match = accountsList?.find(({ value }) => value === accountValue);
-        return match?.label ?? null;
-      })
-      .filter((label) => label !== null);
-
-    return {
-      name: found.name,
-      baseUrl: found.baseUrl,
-      apiUserName: found.apiUserName,
-      apiPassword: found.apiPassword,
-      accountsId: accounts,
-      active: found.active,
-    };
-  }, [instanceId, instances, accountsList]);
+        acc[column] = thisInfo?.[column] ?? "";
+        return acc;
+      }, {}),
+    [thisInfo, accountId]
+  );
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/instances`);
 
-  const [instance, bindField, areFieldsEmpty, setFields] = useForm(initialState);
-
-  useEffect(() => {
-    if (instanceId && thisInstance) {
-      setFields(thisInstance);
-    }
-  }, [instanceId, thisInstance, setFields]);
-
-  const [active, handleSwitchChange] = useToggle(instanceId ? thisInstance?.active : true);
+  const [instance, bindField, areFieldsEmpty] = useForm(formData);
 
   useEffect(() => {
     if (isSuperuser) {
       dispatch(getAccountsLists());
     }
   }, [dispatch, isSuperuser]);
+
+  const handleManageInstance = async () => {
+    const id = instanceId ? Number(instanceId) : null;
+    const accountIds = Array.isArray(instance.accountIds) ? instance.accountIds.filter((value) => value != null) : [];
+    const instanceData = {
+      ...instance,
+      accountIds,
+    };
+
+    const action = await dispatch(id ? updateInstance(id, instanceData) : createInstance(instanceData));
+
+    if (action) {
+      buttonHasBeenClicked();
+    }
+  };
 
   if (!isSuperuser) {
     return (
@@ -99,30 +87,7 @@ const ManageInstance = () => {
     );
   }
 
-  const handleManageInstance = () => {
-    const accountsId = Array.isArray(instance.accountsId)
-      ? instance.accountsId
-          .filter(Boolean)
-          .map((accountLabel) => {
-            const match = accountsList?.find(({ label }) => label === accountLabel);
-            return match?.value ?? null;
-          })
-          .filter((id) => id !== null)
-      : [];
-
-    const instanceData = {
-      ...instance,
-      accountsId,
-      active,
-    };
-
-    const action = instanceId ? updateInstance(instanceId, instanceData) : createInstance(instanceData);
-
-    dispatch(action);
-    buttonHasBeenClicked();
-  };
-
-  if (loading && instanceId && !thisInstance) {
+  if (loading && instanceId && !thisInfo) {
     return (
       <Paper className="container">
         <CircularLoading />
@@ -130,7 +95,7 @@ const ManageInstance = () => {
     );
   }
 
-  if (instanceId && !thisInstance && !loading) {
+  if (instanceId && !thisInfo && !loading) {
     return (
       <Paper className="container">
         <Typography variant="h6" align="center" color="error">
@@ -149,10 +114,8 @@ const ManageInstance = () => {
         instanceId={instanceId}
         bindField={bindField}
         accounts={accountsList}
-        active={active}
-        handleSwitchChange={handleSwitchChange}
         isSuperuser={isSuperuser}
-        accountsId={instance?.accountsId || []}
+        accountIds={instance?.accountIds || []}
       />
 
       <Grid mt={3} container justifyContent="space-between">

@@ -2,10 +2,15 @@ const { db } = require("../../database");
 const { eq, and, isNull, sql } = require("drizzle-orm");
 const { workspaces, accountsInstancesWorkspaces, accountsInstances, usersWorkspaces } = require("../db/schema");
 const { instances } = require("../db/schema/instances");
+const { handleDbError } = require("../common/dbErrorMapper");
 
 exports.createWorkspace = async (workspaceData) => {
-  const result = await db.insert(workspaces).values(workspaceData);
-  return result[0];
+  try {
+    const result = await db.insert(workspaces).values(workspaceData);
+    return result[0];
+  } catch (error) {
+    handleDbError(error, "Failed to create workspace");
+  }
 };
 
 exports.findById = async (id) => {
@@ -30,7 +35,7 @@ exports.findAccountInstance = async (accountId, instanceId) => {
   const result = await db
     .select()
     .from(accountsInstances)
-    .where(and(eq(accountsInstances.accountsId, accountId), eq(accountsInstances.instancesId, instanceId), isNull(accountsInstances.deletedAt)))
+    .where(and(eq(accountsInstances.accountId, accountId), eq(accountsInstances.instanceId, instanceId), isNull(accountsInstances.deletedAt)))
     .limit(1);
   return result[0] || null;
 };
@@ -45,7 +50,7 @@ exports.findAll = async (options = {}) => {
   }
 
   if (accountId) {
-    conditions.push(eq(accountsInstances.accountsId, accountId));
+    conditions.push(eq(accountsInstances.accountId, accountId));
   }
 
   let query = db
@@ -56,12 +61,12 @@ exports.findAll = async (options = {}) => {
       deletedAt: workspaces.deletedAt,
       createdAt: workspaces.createdAt,
       updatedAt: workspaces.updatedAt,
-      accountId: sql`MIN(${accountsInstances.accountsId})`.as("accountId"),
-      instanceId: sql`MIN(${accountsInstances.instancesId})`.as("instanceId"),
+      accountId: sql`MIN(${accountsInstances.accountId})`.as("accountId"),
+      instanceId: sql`MIN(${accountsInstances.instanceId})`.as("instanceId"),
     })
     .from(workspaces)
-    .leftJoin(accountsInstancesWorkspaces, and(eq(workspaces.id, accountsInstancesWorkspaces.idWorkspaces), isNull(accountsInstancesWorkspaces.deletedAt)))
-    .leftJoin(accountsInstances, and(eq(accountsInstancesWorkspaces.idAccountsInstances, accountsInstances.id), isNull(accountsInstances.deletedAt)))
+    .leftJoin(accountsInstancesWorkspaces, and(eq(workspaces.id, accountsInstancesWorkspaces.workspaceId), isNull(accountsInstancesWorkspaces.deletedAt)))
+    .leftJoin(accountsInstances, and(eq(accountsInstancesWorkspaces.accountInstanceId, accountsInstances.id), isNull(accountsInstances.deletedAt)))
     .where(and(...conditions))
     .groupBy(workspaces.id);
 
@@ -82,12 +87,12 @@ exports.getForSelect = async ({ accountId } = {}) => {
   // Si se proporciona accountId, filtrar workspaces por account
   if (accountId) {
     query = query
-      .innerJoin(accountsInstancesWorkspaces, and(eq(workspaces.id, accountsInstancesWorkspaces.idWorkspaces), isNull(accountsInstancesWorkspaces.deletedAt)))
+      .innerJoin(accountsInstancesWorkspaces, and(eq(workspaces.id, accountsInstancesWorkspaces.workspaceId), isNull(accountsInstancesWorkspaces.deletedAt)))
       .innerJoin(
         accountsInstances,
         and(
-          eq(accountsInstancesWorkspaces.idAccountsInstances, accountsInstances.id),
-          eq(accountsInstances.accountsId, accountId),
+          eq(accountsInstancesWorkspaces.accountInstanceId, accountsInstances.id),
+          eq(accountsInstances.accountId, accountId),
           isNull(accountsInstances.deletedAt)
         )
       );
@@ -126,9 +131,9 @@ exports.findWorkspacesByAccount = async (accountId) => {
       instanceUrl: instances.baseUrl,
     })
     .from(workspaces)
-    .innerJoin(accountsInstancesWorkspaces, and(eq(workspaces.id, accountsInstancesWorkspaces.idWorkspaces), isNull(accountsInstancesWorkspaces.deletedAt)))
-    .innerJoin(accountsInstances, and(eq(accountsInstancesWorkspaces.idAccountsInstances, accountsInstances.id), eq(accountsInstances.accountsId, accountId)))
-    .innerJoin(instances, eq(accountsInstances.instancesId, instances.id))
+    .innerJoin(accountsInstancesWorkspaces, and(eq(workspaces.id, accountsInstancesWorkspaces.workspaceId), isNull(accountsInstancesWorkspaces.deletedAt)))
+    .innerJoin(accountsInstances, and(eq(accountsInstancesWorkspaces.accountInstanceId, accountsInstances.id), eq(accountsInstances.accountId, accountId)))
+    .innerJoin(instances, eq(accountsInstances.instanceId, instances.id))
     .where(isNull(workspaces.deletedAt));
 
   return result;
@@ -147,25 +152,37 @@ exports.findWorkspacesByUser = async (userId) => {
       userWorkspaceActive: usersWorkspaces.active,
     })
     .from(workspaces)
-    .innerJoin(usersWorkspaces, and(eq(workspaces.id, usersWorkspaces.workspacesId), isNull(usersWorkspaces.deletedAt)))
-    .where(and(eq(usersWorkspaces.usersId, userId), isNull(workspaces.deletedAt), eq(workspaces.active, true)));
+    .innerJoin(usersWorkspaces, and(eq(workspaces.id, usersWorkspaces.workspaceId), isNull(usersWorkspaces.deletedAt)))
+    .where(and(eq(usersWorkspaces.userId, userId), isNull(workspaces.deletedAt), eq(workspaces.active, true)));
 
   return result;
 };
 
 exports.updateWorkspace = async (id, data) => {
-  return await db
-    .update(workspaces)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(workspaces.id, id));
+  try {
+    return await db
+      .update(workspaces)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(workspaces.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to update workspace");
+  }
 };
 
 exports.softDelete = async (id) => {
-  return await db.update(workspaces).set({ active: false, deletedAt: new Date() }).where(eq(workspaces.id, id));
+  try {
+    return await db.update(workspaces).set({ active: false, deletedAt: new Date() }).where(eq(workspaces.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate workspace");
+  }
 };
 
 exports.activate = async (id) => {
-  return await db.update(workspaces).set({ active: true, updatedAt: new Date() }).where(eq(workspaces.id, id));
+  try {
+    return await db.update(workspaces).set({ active: true, updatedAt: new Date() }).where(eq(workspaces.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to activate workspace");
+  }
 };
 
 exports.assignWorkspaceToAccountInstance = async (accountInstanceId, workspaceId) => {
@@ -174,62 +191,88 @@ exports.assignWorkspaceToAccountInstance = async (accountInstanceId, workspaceId
       id: accountsInstancesWorkspaces.id,
     })
     .from(accountsInstancesWorkspaces)
-    .where(
-      and(
-        eq(accountsInstancesWorkspaces.idAccountsInstances, accountInstanceId),
-        eq(accountsInstancesWorkspaces.idWorkspaces, workspaceId)
-      )
-    )
+    .where(and(eq(accountsInstancesWorkspaces.accountInstanceId, accountInstanceId), eq(accountsInstancesWorkspaces.workspaceId, workspaceId)))
     .limit(1);
 
   if (existing.length > 0) {
-    return await db
-      .update(accountsInstancesWorkspaces)
-      .set({ active: true, deletedAt: null, updatedAt: new Date() })
-      .where(eq(accountsInstancesWorkspaces.id, existing[0].id));
+    try {
+      return await db
+        .update(accountsInstancesWorkspaces)
+        .set({ active: true, deletedAt: null, updatedAt: new Date() })
+        .where(eq(accountsInstancesWorkspaces.id, existing[0].id));
+    } catch (error) {
+      handleDbError(error, "Failed to reactivate workspace-accountInstance relation");
+    }
   }
 
-  const result = await db.insert(accountsInstancesWorkspaces).values({
-    idAccountsInstances: accountInstanceId,
-    idWorkspaces: workspaceId,
-    active: true,
-  });
-  return result[0];
+  try {
+    const result = await db.insert(accountsInstancesWorkspaces).values({
+      accountInstanceId,
+      workspaceId,
+      active: true,
+    });
+    return result[0];
+  } catch (error) {
+    handleDbError(error, "Failed to assign workspace to accountInstance");
+  }
 };
 
 exports.removeWorkspaceFromAccountInstance = async (accountInstanceId, workspaceId) => {
-  return await db
-    .update(accountsInstancesWorkspaces)
-    .set({ active: false, deletedAt: new Date() })
-    .where(and(eq(accountsInstancesWorkspaces.idAccountsInstances, accountInstanceId), eq(accountsInstancesWorkspaces.idWorkspaces, workspaceId)));
+  try {
+    return await db
+      .update(accountsInstancesWorkspaces)
+      .set({ active: false, deletedAt: new Date() })
+      .where(and(eq(accountsInstancesWorkspaces.accountInstanceId, accountInstanceId), eq(accountsInstancesWorkspaces.workspaceId, workspaceId)));
+  } catch (error) {
+    handleDbError(error, "Failed to remove workspace from accountInstance");
+  }
 };
 
 exports.assignWorkspaceToUser = async (userId, workspaceId) => {
-  const result = await db.insert(usersWorkspaces).values({
-    usersId: userId,
-    workspacesId: workspaceId,
-    active: true,
-  });
-  return result[0];
+  try {
+    const result = await db.insert(usersWorkspaces).values({
+      userId,
+      workspaceId,
+      active: true,
+    });
+    return result[0];
+  } catch (error) {
+    handleDbError(error, "Failed to assign workspace to user");
+  }
 };
 
 exports.removeWorkspaceFromUser = async (userId, workspaceId) => {
-  return await db
-    .update(usersWorkspaces)
-    .set({ active: false, deletedAt: new Date() })
-    .where(and(eq(usersWorkspaces.usersId, userId), eq(usersWorkspaces.workspacesId, workspaceId)));
+  try {
+    return await db
+      .update(usersWorkspaces)
+      .set({ active: false, deletedAt: new Date() })
+      .where(and(eq(usersWorkspaces.userId, userId), eq(usersWorkspaces.workspaceId, workspaceId)));
+  } catch (error) {
+    handleDbError(error, "Failed to remove workspace from user");
+  }
+};
+
+exports.deactivate = async (id) => {
+  try {
+    return await db.update(workspaces).set({ active: false, updatedAt: new Date() }).where(eq(workspaces.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate workspace");
+  }
 };
 
 exports.getWorkspaceAccountIds = async (workspaceId) => {
   const result = await db
     .selectDistinct({
-      accountsId: accountsInstances.accountsId,
+      accountId: accountsInstances.accountId,
     })
     .from(accountsInstancesWorkspaces)
-    .innerJoin(accountsInstances, and(eq(accountsInstancesWorkspaces.idAccountsInstances, accountsInstances.id), isNull(accountsInstances.deletedAt)))
-    .where(and(eq(accountsInstancesWorkspaces.idWorkspaces, workspaceId), isNull(accountsInstancesWorkspaces.deletedAt)));
+    .innerJoin(
+      accountsInstances,
+      and(eq(accountsInstancesWorkspaces.accountInstanceId, accountsInstances.id), isNull(accountsInstances.deletedAt))
+    )
+    .where(and(eq(accountsInstancesWorkspaces.workspaceId, workspaceId), isNull(accountsInstancesWorkspaces.deletedAt)));
 
-  return result.map((row) => row.accountsId);
+  return result.map((row) => row.accountId);
 };
 
 module.exports = exports;

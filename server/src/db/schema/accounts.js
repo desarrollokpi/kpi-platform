@@ -9,7 +9,7 @@ const accounts = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     name: varchar("name", { length: 100 }).notNull(),
-    subDomain: varchar("subDomain", { length: 100 }).notNull(),
+    subDomain: varchar("subDomain", { length: 100 }).notNull().unique(),
     dataBase: varchar("dataBase", { length: 100 }),
     keyUser: varchar("keyUser", { length: 64 }),
     password: varchar("password", { length: 15 }),
@@ -34,7 +34,7 @@ const accountContract = mysqlTable(
   "accountContract",
   {
     id: int("id").autoincrement().primaryKey(),
-    idAccounts: int("idAccounts")
+    accountId: int("accountId")
       .notNull()
       .references(() => accounts.id, { onDelete: "restrict" }),
     nombre: varchar("nombre", { length: 100 }),

@@ -1,23 +1,9 @@
-import {
-  ERROR,
-  LOADING,
-  CLEAR_MESSAGE,
-  READ_LOGO_BY_SUBDOMAIN,
-  GET_ALL_ACCOUNTS,
-  CREATE_ACCOUNT,
-  UPDATE_ACCOUNT,
-  GET_ACCOUNT_BY_ID
-} from "./accountsTypes";
 import axios from "axios";
-
-const extractErrorMessage = (error) => error?.response?.data?.message || error?.message || "Unexpected error";
-
-const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
-
-export const clearMessage = () => (dispatch) => dispatch({ type: CLEAR_MESSAGE });
+import { setLoading, clearMessage, handleError } from "../common/utils";
+import { ERROR, LOADING, CLEAR_MESSAGE, READ_LOGO_BY_SUBDOMAIN, GET_ALL_ACCOUNTS, CREATE_ACCOUNT, UPDATE_ACCOUNT, GET_ACCOUNT_BY_ID } from "./accountsTypes";
 
 export const readLogoBySubdomain = (subdomain) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/accounts/logoBySubdomain`, { params: { subdomain } });
     dispatch({
@@ -26,17 +12,15 @@ export const readLogoBySubdomain = (subdomain) => async (dispatch) => {
       meta: { subdomain },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const getAccountsLists = (options) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/accounts`, { params: { ...options } });
     dispatch({
@@ -44,17 +28,15 @@ export const getAccountsLists = (options) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const getAccountById = (accountId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/accounts/${accountId}`);
     dispatch({
@@ -62,54 +44,52 @@ export const getAccountById = (accountId) => async (dispatch) => {
       payload: data.account,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const createAccount = (accountData) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/accounts`, accountData);
     dispatch({
       type: CREATE_ACCOUNT,
       payload: data.account,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
-export const updateAccount = (accountData) => async (dispatch) => {
-  setLoading(dispatch, true);
+export const updateAccount = (accountId, updateData) => async (dispatch) => {
+  setLoading(dispatch, true, LOADING);
   try {
-    const { id, ...updateData } = accountData;
-    const { data } = await axios.put(`/accounts/${id}`, updateData);
+    const { data } = await axios.put(`/accounts/${accountId}`, updateData);
     dispatch({
       type: UPDATE_ACCOUNT,
       payload: data.account,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const activateAccount = (accountId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/accounts/${accountId}/activate`);
     dispatch({
@@ -117,17 +97,15 @@ export const activateAccount = (accountId) => async (dispatch) => {
       payload: data.account,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const deActivateAccount = (accountId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/accounts/${accountId}/deactivate`);
     dispatch({
@@ -135,17 +113,15 @@ export const deActivateAccount = (accountId) => async (dispatch) => {
       payload: data.account,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const deleteAccount = (accountId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/accounts/${accountId}`);
     dispatch({
@@ -153,11 +129,9 @@ export const deleteAccount = (accountId) => async (dispatch) => {
       payload: { id: accountId, deleted: true, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };

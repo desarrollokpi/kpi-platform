@@ -1,10 +1,15 @@
 const { db } = require("../../database");
 const { eq, and, isNull, sql, desc } = require("drizzle-orm");
-const { dashboards, usersDashboards, reports, workspaces, instances, users } = require("../db/schema");
+const { dashboards, usersDashboards, reports, workspaces, instances, users, accountsInstances, accountsInstancesWorkspaces } = require("../db/schema");
+const { handleDbError } = require("../common/dbErrorMapper");
 
 exports.createDashboard = async (dashboardData) => {
-  const [result] = await db.insert(dashboards).values(dashboardData);
-  return result;
+  try {
+    const [result] = await db.insert(dashboards).values(dashboardData);
+    return result;
+  } catch (error) {
+    handleDbError(error, "Failed to create dashboard");
+  }
 };
 
 exports.findById = async (id) => {
@@ -16,11 +21,11 @@ exports.findById = async (id) => {
   return result[0] || null;
 };
 
-exports.findBySupersetId = async (supersetId) => {
+exports.findBySupersetId = async (instanceId) => {
   const result = await db
     .select()
     .from(dashboards)
-    .where(and(eq(dashboards.supersetId, supersetId), isNull(dashboards.deletedAt)))
+    .where(and(eq(dashboards.instanceId, instanceId), isNull(dashboards.deletedAt)))
     .limit(1);
   return result[0] || null;
 };
@@ -70,36 +75,68 @@ exports.getForSelect = async () => {
 };
 
 exports.updateDashboard = async (id, data) => {
-  return await db
-    .update(dashboards)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(dashboards.id, id));
+  try {
+    return await db
+      .update(dashboards)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(dashboards.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to update dashboard");
+  }
 };
 
 exports.softDelete = async (id) => {
-  return await db.update(dashboards).set({ active: false, deletedAt: new Date() }).where(eq(dashboards.id, id));
+  try {
+    return await db.update(dashboards).set({ active: false, deletedAt: new Date() }).where(eq(dashboards.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to delete dashboard");
+  }
 };
 
-exports.assignDashboardToUser = async (idUsers, dashboardsId) => {
-  const [result] = await db.insert(usersDashboards).values({
-    idUsers,
-    dashboardsId,
-  });
-  return result;
+exports.activate = async (id) => {
+  try {
+    return await db.update(dashboards).set({ active: true, deletedAt: null, updatedAt: new Date() }).where(eq(dashboards.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to activate dashboard");
+  }
 };
 
-exports.removeDashboardFromUser = async (idUsers, dashboardsId) => {
-  return await db
-    .update(usersDashboards)
-    .set({ active: false, deletedAt: new Date() })
-    .where(and(eq(usersDashboards.idUsers, idUsers), eq(usersDashboards.dashboardsId, dashboardsId)));
+exports.deactivate = async (id) => {
+  try {
+    return await db.update(dashboards).set({ active: false, updatedAt: new Date() }).where(eq(dashboards.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate dashboard");
+  }
 };
 
-exports.findDashboardsForUser = async (userId, accountsId) => {
+exports.assignDashboardToUser = async (userId, dashboardId) => {
+  try {
+    const [result] = await db.insert(usersDashboards).values({
+      userId,
+      dashboardId,
+    });
+    return result;
+  } catch (error) {
+    handleDbError(error, "Failed to assign dashboard to user");
+  }
+};
+
+exports.removeDashboardFromUser = async (userId, dashboardId) => {
+  try {
+    return await db
+      .update(usersDashboards)
+      .set({ active: false, deletedAt: new Date() })
+      .where(and(eq(usersDashboards.userId, userId), eq(usersDashboards.dashboardId, dashboardId)));
+  } catch (error) {
+    handleDbError(error, "Failed to remove dashboard from user");
+  }
+};
+
+exports.findDashboardsForUser = async (userId, accountId) => {
   return await db.execute(sql`
     SELECT DISTINCT
       d.id,
-      d.superset_id as supersetId,
+      d.instance_id as instanceId,
       d.superset_dashboard_id as supersetDashboardId,
       d.embedded_id as embeddedId,
       d.name,
@@ -110,26 +147,26 @@ exports.findDashboardsForUser = async (userId, accountsId) => {
       d.created_at as createdAt,
       d.updated_at as updatedAt
     FROM users u
-    INNER JOIN users_dashboards ud ON ud.id_users = u.id
+    INNER JOIN users_dashboards ud ON ud.user_id = u.id
       AND ud.active = 1 AND ud.deleted_at IS NULL
-    INNER JOIN dashboards d ON d.id = ud.dashboards_id
+    INNER JOIN dashboards d ON d.id = ud.dashboard_id
       AND d.active = 1 AND d.deleted_at IS NULL
-    INNER JOIN reports r ON r.id = d.reports_id
+    INNER JOIN reports r ON r.id = d.report_id
       AND r.active = 1 AND r.deleted_at IS NULL
-    INNER JOIN workspaces w ON w.id = r.workspaces_id
+    INNER JOIN workspaces w ON w.id = r.workspace_id
       AND w.active = 1 AND w.deleted_at IS NULL
-    INNER JOIN accounts_instances_workspaces aiw ON aiw.id_workspaces = w.id
+    INNER JOIN accounts_instances_workspaces aiw ON aiw.workspace_id = w.id
       AND aiw.active = 1 AND aiw.deleted_at IS NULL
-    INNER JOIN accounts_instances ai ON ai.id = aiw.id_accounts_instances
+    INNER JOIN accounts_instances ai ON ai.id = aiw.account_instance_id
       AND ai.active = 1 AND ai.deleted_at IS NULL
     WHERE u.id = ${userId}
-      AND ai.accounts_id = ${accountsId}
+      AND ai.accounts_id = ${accountId}
       AND u.active = 1 AND u.deleted_at IS NULL
     ORDER BY w.name, r.name, d.name
   `);
 };
 
-exports.findUsersForDashboard = async (dashboardsId) => {
+exports.findUsersForDashboard = async (dashboardId) => {
   return await db.execute(sql`
     SELECT
       u.id,
@@ -139,8 +176,8 @@ exports.findUsersForDashboard = async (dashboardsId) => {
       ud.active as assignmentActive,
       ud.created_at as assignedAt
     FROM users_dashboards ud
-    INNER JOIN users u ON u.id = ud.id_users
-    WHERE ud.dashboards_id = ${dashboardsId}
+    INNER JOIN users u ON u.id = ud.user_id
+    WHERE ud.dashboard_id = ${dashboardId}
       AND ud.deleted_at IS NULL
       AND u.deleted_at IS NULL
   `);
@@ -152,8 +189,8 @@ exports.userHasAccess = async (userId, dashboardId) => {
     .from(usersDashboards)
     .where(
       and(
-        eq(usersDashboards.idUsers, userId),
-        eq(usersDashboards.dashboardsId, dashboardId),
+        eq(usersDashboards.userId, userId),
+        eq(usersDashboards.dashboardId, dashboardId),
         eq(usersDashboards.active, true),
         isNull(usersDashboards.deletedAt)
       )
@@ -171,16 +208,201 @@ exports.countByReportId = async (reportId) => {
   return result[0].count;
 };
 
-exports.getDashboardEmbedInfo = async (dashboardId) => {
-  const rows = await db
+exports.findAllByAccount = async (accountId, options = {}) => {
+  const conditions = [isNull(dashboards.deletedAt)];
+
+  if (options.active !== undefined) {
+    const activeValue = options.active === true || options.active === "true";
+    conditions.push(eq(dashboards.active, activeValue));
+  }
+
+  if (options.reportId !== undefined) {
+    conditions.push(eq(dashboards.reportId, options.reportId));
+  }
+
+  let query = db
     .select({
       id: dashboards.id,
-      supersetId: dashboards.supersetId,
+      instanceId: dashboards.instanceId,
       embeddedId: dashboards.embeddedId,
       name: dashboards.name,
       reportId: dashboards.reportId,
       reportName: reports.name,
-      workspacesId: reports.workspacesId,
+      active: dashboards.active,
+      createdAt: dashboards.createdAt,
+      updatedAt: dashboards.updatedAt,
+    })
+    .from(dashboards)
+    .innerJoin(
+      reports,
+      and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt))
+    )
+    .innerJoin(
+      workspaces,
+      and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt))
+    )
+    .innerJoin(
+      accountsInstancesWorkspaces,
+      and(
+        eq(accountsInstancesWorkspaces.workspaceId, workspaces.id),
+        eq(accountsInstancesWorkspaces.active, true),
+        isNull(accountsInstancesWorkspaces.deletedAt)
+      )
+    )
+    .innerJoin(
+      accountsInstances,
+      and(
+        eq(accountsInstances.id, accountsInstancesWorkspaces.accountInstanceId),
+        eq(accountsInstances.active, true),
+        isNull(accountsInstances.deletedAt),
+        eq(accountsInstances.accountId, accountId)
+      )
+    )
+    .where(and(...conditions));
+
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  if (options.offset) {
+    query = query.offset(options.offset);
+  }
+
+  return await query;
+};
+
+exports.findInstancesForWorkspace = async (workspaceId) => {
+  const rows = await db
+    .select({
+      instanceId: instances.id,
+      instanceName: instances.name,
+      baseUrl: instances.baseUrl,
+      apiUserName: instances.apiUserName,
+      apiPassword: instances.apiPassword,
+    })
+    .from(accountsInstancesWorkspaces)
+    .innerJoin(
+      accountsInstances,
+      and(
+        eq(accountsInstancesWorkspaces.accountInstanceId, accountsInstances.id),
+        eq(accountsInstances.active, true),
+        isNull(accountsInstances.deletedAt)
+      )
+    )
+    .innerJoin(
+      instances,
+      and(eq(accountsInstances.instanceId, instances.id), eq(instances.active, true), isNull(instances.deletedAt))
+    )
+    .where(
+      and(
+        eq(accountsInstancesWorkspaces.workspaceId, workspaceId),
+        eq(accountsInstancesWorkspaces.active, true),
+        isNull(accountsInstancesWorkspaces.deletedAt)
+      )
+    );
+
+  return rows;
+};
+
+exports.findActiveAssignmentsForUser = async (userId) => {
+  return await db
+    .select({
+      dashboardId: usersDashboards.dashboardId,
+    })
+    .from(usersDashboards)
+    .where(
+      and(
+        eq(usersDashboards.userId, userId),
+        eq(usersDashboards.active, true),
+        isNull(usersDashboards.deletedAt)
+      )
+    );
+};
+
+exports.findDashboardsAssignableToUser = async (targetAccountId) => {
+  if (!targetAccountId) {
+    const rows = await db
+      .select({
+        id: dashboards.id,
+        instanceId: dashboards.instanceId,
+        embeddedId: dashboards.embeddedId,
+        name: dashboards.name,
+        reportId: dashboards.reportId,
+        active: dashboards.active,
+        createdAt: dashboards.createdAt,
+        updatedAt: dashboards.updatedAt,
+      })
+      .from(dashboards)
+      .innerJoin(
+        reports,
+        and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt))
+      )
+      .innerJoin(
+        workspaces,
+        and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt))
+      )
+      .where(and(eq(dashboards.active, true), isNull(dashboards.deletedAt)));
+
+    return rows;
+  }
+
+  const rows = await db
+    .select({
+      id: dashboards.id,
+      instanceId: dashboards.instanceId,
+      embeddedId: dashboards.embeddedId,
+      name: dashboards.name,
+      reportId: dashboards.reportId,
+      active: dashboards.active,
+      createdAt: dashboards.createdAt,
+      updatedAt: dashboards.updatedAt,
+    })
+    .from(dashboards)
+    .innerJoin(
+      reports,
+      and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt))
+    )
+    .innerJoin(
+      workspaces,
+      and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt))
+    )
+    .innerJoin(
+      accountsInstancesWorkspaces,
+      and(
+        eq(accountsInstancesWorkspaces.workspaceId, workspaces.id),
+        eq(accountsInstancesWorkspaces.active, true),
+        isNull(accountsInstancesWorkspaces.deletedAt)
+      )
+    )
+    .innerJoin(
+      accountsInstances,
+      and(
+        eq(accountsInstances.id, accountsInstancesWorkspaces.accountInstanceId),
+        eq(accountsInstances.active, true),
+        isNull(accountsInstances.deletedAt),
+        eq(accountsInstances.accountId, targetAccountId)
+      )
+    )
+    .where(
+      and(
+        eq(dashboards.active, true),
+        isNull(dashboards.deletedAt)
+      )
+    );
+
+  return rows;
+};
+
+exports.getDashboardEmbedInfo = async (dashboardId) => {
+  const rows = await db
+    .select({
+      id: dashboards.id,
+      instanceId: dashboards.instanceId,
+      embeddedId: dashboards.embeddedId,
+      name: dashboards.name,
+      reportId: dashboards.reportId,
+      reportName: reports.name,
+      workspaceId: reports.workspaceId,
       workspaceName: workspaces.name,
       instanceId: instances.id,
       instanceName: instances.name,
@@ -193,10 +415,10 @@ exports.getDashboardEmbedInfo = async (dashboardId) => {
     })
     .from(dashboards)
     .innerJoin(reports, eq(dashboards.reportId, reports.id))
-    .innerJoin(workspaces, eq(reports.workspacesId, workspaces.id))
+    .innerJoin(workspaces, eq(reports.workspaceId, workspaces.id))
     .innerJoin(
       instances,
-      and(eq(instances.id, dashboards.supersetId), eq(instances.active, true), isNull(instances.deletedAt))
+      and(eq(instances.id, dashboards.instanceId), eq(instances.active, true), isNull(instances.deletedAt))
     )
     .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
     .limit(1);

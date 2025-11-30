@@ -3,21 +3,19 @@ const { ValidationError } = require("../common/exception");
 
 exports.getAllRoles = async (req, res, next) => {
   try {
+    const { mode } = req.query;
+
+    if (mode === "select") {
+      const roles = await rolesServices.getRolesForSelect();
+      return res.json(roles);
+    }
+
     const roles = await rolesServices.getAllRoles();
 
     res.json({
       roles,
       count: roles.length,
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.getRolesForSelect = async (req, res, next) => {
-  try {
-    const roles = await rolesServices.getRolesForSelect();
-    res.json(roles);
   } catch (error) {
     next(error);
   }

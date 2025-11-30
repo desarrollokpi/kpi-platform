@@ -1,6 +1,7 @@
 const { db } = require("../../database");
 const { eq, and, or, isNull } = require("drizzle-orm");
 const { usersRoles, roles, users } = require("../db/schema");
+const { handleDbError } = require("../common/dbErrorMapper");
 
 exports.getAllRoles = async () => {
   const result = await db
@@ -21,11 +22,19 @@ exports.getRoleByName = async (name) => {
 };
 
 exports.assignRoleToUser = async (userId, roleId) => {
-  return await db.insert(usersRoles).values({ usersId: userId, rolesId: roleId });
+  try {
+    return await db.insert(usersRoles).values({ userId, roleId });
+  } catch (error) {
+    handleDbError(error, "Failed to assign role to user");
+  }
 };
 
 exports.removeRoleFromUser = async (userId, roleId) => {
-  return await db.delete(usersRoles).where(and(eq(usersRoles.usersId, userId), eq(usersRoles.rolesId, roleId)));
+  try {
+    return await db.delete(usersRoles).where(and(eq(usersRoles.userId, userId), eq(usersRoles.roleId, roleId)));
+  } catch (error) {
+    handleDbError(error, "Failed to remove role from user");
+  }
 };
 
 exports.getUserRoles = async (userId) => {
@@ -35,8 +44,8 @@ exports.getUserRoles = async (userId) => {
       name: roles.name,
     })
     .from(usersRoles)
-    .innerJoin(roles, eq(usersRoles.rolesId, roles.id))
-    .where(eq(usersRoles.usersId, userId));
+    .innerJoin(roles, eq(usersRoles.roleId, roles.id))
+    .where(eq(usersRoles.userId, userId));
 
   return result;
 };
@@ -45,8 +54,8 @@ exports.userHasRole = async (userId, roleName) => {
   const result = await db
     .select({ id: roles.id })
     .from(usersRoles)
-    .innerJoin(roles, eq(usersRoles.rolesId, roles.id))
-    .where(and(eq(usersRoles.usersId, userId), eq(roles.name, roleName)))
+    .innerJoin(roles, eq(usersRoles.roleId, roles.id))
+    .where(and(eq(usersRoles.userId, userId), eq(roles.name, roleName)))
     .limit(1);
 
   return result.length > 0;
@@ -58,12 +67,12 @@ exports.getUsersByRole = async (roleName) => {
       id: users.id,
       userName: users.userName,
       mail: users.mail,
-      accountsId: users.accountsId,
+      accountId: users.accountId,
       active: users.active,
     })
     .from(usersRoles)
-    .innerJoin(roles, eq(usersRoles.rolesId, roles.id))
-    .innerJoin(users, eq(usersRoles.usersId, users.id))
+    .innerJoin(roles, eq(usersRoles.roleId, roles.id))
+    .innerJoin(users, eq(usersRoles.userId, users.id))
     .where(and(eq(roles.name, roleName), isNull(users.deletedAt)));
 
   return result;
@@ -81,8 +90,8 @@ exports.isAdmin = async (userId) => {
   const result = await db
     .select({ id: roles.id })
     .from(usersRoles)
-    .innerJoin(roles, eq(usersRoles.rolesId, roles.id))
-    .where(and(eq(usersRoles.usersId, userId), or(eq(roles.name, "root_admin"), eq(roles.name, "tenant_admin"))))
+    .innerJoin(roles, eq(usersRoles.roleId, roles.id))
+    .where(and(eq(usersRoles.userId, userId), or(eq(roles.name, "root_admin"), eq(roles.name, "tenant_admin"))))
     .limit(1);
 
   return result.length > 0;

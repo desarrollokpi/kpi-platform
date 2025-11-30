@@ -2,16 +2,14 @@ const instancesServices = require("./instances.services");
 
 exports.createIntance = async (req, res, next) => {
   try {
-    const { name, baseUrl, apiUserName, apiPassword, accountsId } = req.body;
-
-    console.log("createIntance accountsId", accountsId);
+    const { name, baseUrl, apiUserName, apiPassword, accountIds } = req.body;
 
     const intance = await instancesServices.createIntance({
       name,
       baseUrl,
       apiUserName,
       apiPassword,
-      accountsId,
+      accountIds,
     });
 
     res.status(201).json({
@@ -37,9 +35,11 @@ exports.getIntanceById = async (req, res, next) => {
 
 exports.getAllInstances = async (req, res, next) => {
   try {
-    const { active, limit, offset, listed = "false", accountId } = req.query;
+    const { active, limit, offset, listed = "false", mode, accountId } = req.query;
 
-    if (listed === "true") {
+    const isSelectMode = mode === "select" || listed === "true";
+
+    if (isSelectMode) {
       const list = await instancesServices.getInstancesForSelect({ accountId });
       return res.json(list);
     }
@@ -69,16 +69,18 @@ exports.getAllInstances = async (req, res, next) => {
 exports.updateIntance = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, baseUrl, apiUserName, apiPassword, accountsId } = req.body;
+    const { name, baseUrl, apiUserName, apiPassword, accountIds } = req.body;
 
     const parsedId = parseInt(id, 10);
+
+    console.log("asdfkljasldkfhalskdfhalsdf");
 
     const intance = await instancesServices.updateIntance(parsedId, {
       name,
       baseUrl,
       apiUserName,
       apiPassword,
-      accountsId,
+      accountIds,
     });
 
     res.json({
@@ -112,6 +114,21 @@ exports.activateIntance = async (req, res, next) => {
 
     res.json({
       message: "Instancia activada exitosamente",
+      intance,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deactivateIntance = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const intance = await instancesServices.deactivateIntance(parseInt(id));
+
+    res.json({
+      message: "Instancia desactivada exitosamente",
       intance,
     });
   } catch (error) {

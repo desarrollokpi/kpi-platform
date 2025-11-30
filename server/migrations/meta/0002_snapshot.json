@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "0bfbe861-0532-4607-af5d-d27d04d002ce",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "3ecd872f-230d-4c4f-9207-896348499659",
+  "prevId": "d53c2b68-0300-4f68-8e0b-316e26fa4225",
   "tables": {
     "accounts": {
       "name": "accounts",
@@ -106,7 +106,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "accounts_subDomain_unique": {
+          "name": "accounts_subDomain_unique",
+          "columns": [
+            "subDomain"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "accountContract": {
@@ -529,13 +536,6 @@
         }
       },
       "indexes": {
-        "usersUsernameUnique": {
-          "name": "usersUsernameUnique",
-          "columns": [
-            "userName"
-          ],
-          "isUnique": true
-        },
         "usersEmailUnique": {
           "name": "usersEmailUnique",
           "columns": [

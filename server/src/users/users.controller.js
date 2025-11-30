@@ -4,21 +4,7 @@ const dashboardsServices = require("../dashboards/dashboards.services");
 
 exports.createUser = async (req, res, next) => {
   try {
-    const { username, name, mail, password, accountId, roleId } = req.body;
-
-    // Validate input
-    if (!username || !mail || !password) {
-      throw new ValidationError("Todos los campos son requeridos: username, name, mail, password, role");
-    }
-
-    const user = await usersServices.createUser({
-      username,
-      name,
-      mail,
-      password,
-      accountId,
-      roleId,
-    });
+    const user = await usersServices.createUser(req.body);
 
     res.status(201).json({
       message: "Usuario creado exitosamente",
@@ -55,16 +41,27 @@ exports.getProfile = async (req, res, next) => {
 
 exports.getAllUsers = async (req, res, next) => {
   try {
-    const { active, accountsId, accountId, limit, offset } = req.query;
+    const { active, accountId, limit, offset, listed = "false", mode } = req.query;
+
+    const isSelectMode = mode === "select" || listed === "true";
+
+    const activeFilter = active !== undefined ? active === "true" : undefined;
+    const accountIdFilter = accountId !== undefined ? parseInt(accountId, 10) : undefined;
+
+    if (isSelectMode) {
+      const users = await usersServices.getUsersForSelect({
+        active: activeFilter,
+        accountId: accountIdFilter,
+      });
+
+      return res.json(users);
+    }
 
     const options = {};
-    if (active !== undefined) options.active = active === "true";
-    const accountsIdFilter = accountId ?? accountsId;
-    if (accountsIdFilter !== undefined) {
-      options.accountsId = parseInt(accountsIdFilter);
-    }
-    if (limit !== undefined) options.limit = parseInt(limit);
-    if (offset !== undefined) options.offset = parseInt(offset);
+    if (activeFilter !== undefined) options.active = activeFilter;
+    if (accountIdFilter !== undefined) options.accountId = accountIdFilter;
+    if (limit !== undefined) options.limit = parseInt(limit, 10);
+    if (offset !== undefined) options.offset = parseInt(offset, 10);
 
     const result = await usersServices.getAllUsers(options);
 

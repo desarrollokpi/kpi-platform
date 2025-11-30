@@ -4,13 +4,15 @@ import useForm from "../../hooks/useForm";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { createDashboard, getDashboardsInstancesLists, getReportsLists, updateDashboard } from "../../state/dashboards/dashboardsActions";
 import { useParams, useNavigate } from "react-router-dom";
-import useToggle from "../../hooks/useToggle";
 import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
 import useSuperuser from "../../hooks/useSuperuser";
 import useAdmin from "../../hooks/useAdmin";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ManageDashboardForm from "./ManageDashboardForm";
 import CircularLoading from "../layout/CircularLoading";
+import useAccountId from "../../hooks/useAccountId";
+
+const COLUMNS = ["name", "reportId", "apacheId"];
 
 const ManageDashboard = () => {
   const dispatch = useDispatch();
@@ -19,47 +21,46 @@ const ManageDashboard = () => {
   const { isAdmin } = useAdmin();
 
   const { dashboards, loading, reportsList, dashboardsInstancesList } = useSelector(({ dashboards }) => dashboards, shallowEqual);
-  const { user } = useSelector(({ auth }) => auth, shallowEqual);
-  const accountId = useMemo(() => user?.accountId || null, [user]);
+  const accountId = useAccountId();
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
-
-  const initialState = {
-    name: "",
-    reportId: "",
-    apacheId: "",
-  };
-
-  let thisDashboard = undefined;
 
   const { dashboardId } = useParams();
 
-  if (dashboardId) {
-    thisDashboard = dashboards.find((dashboard) => dashboard.id === parseInt(dashboardId, 10));
-  }
+  const thisInfo = useMemo(() => {
+    if (!dashboardId) return null;
+    const id = Number(dashboardId);
+    if (Number.isNaN(id)) return null;
+    return dashboards.find((dashboard) => dashboard.id === id) || null;
+  }, [dashboardId, dashboards]);
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, -1);
 
-  const initialFormState = dashboardId && thisDashboard
-    ? {
-        ...thisDashboard,
-        // Rebuild apacheId from stored supersetId and supersetDashboardId for edit mode
-        apacheId:
-          thisDashboard.supersetId && thisDashboard.supersetDashboardId
-            ? `${thisDashboard.supersetId}-${thisDashboard.supersetDashboardId}`
-            : "",
-      }
-    : initialState;
+  const formData = useMemo(
+    () =>
+      COLUMNS.reduce((acc, column) => {
+        if (column === "apacheId") {
+          acc.apacheId = thisInfo?.instanceId && thisInfo?.supersetDashboardId ? `${thisInfo.instanceId}-${thisInfo.supersetDashboardId}` : "";
+          return acc;
+        }
 
-  const [dashboard, bindField, areFieldsEmpty] = useForm(initialFormState);
+        acc[column] = thisInfo?.[column] ?? "";
+        return acc;
+      }, {}),
+    [thisInfo]
+  );
 
-  const [active, handleSwitchChange] = useToggle(dashboardId ? thisDashboard?.active : true);
+  const [dashboard, bindField, areFieldsEmpty] = useForm(formData);
 
-  const handleManageDashboard = () => {
-    const dashboardData = { ...dashboard, active };
+  const handleManageDashboard = async () => {
+    const id = dashboardId ? Number(dashboardId) : null;
+    const dashboardData = {
+      ...dashboard,
+    };
 
-    dispatch(dashboardId ? updateDashboard(dashboardData) : createDashboard(dashboardData));
-
-    buttonHasBeenClicked();
+    const action = await dispatch(id ? updateDashboard(id, dashboardData) : createDashboard(dashboardData));
+    if (action) {
+      buttonHasBeenClicked();
+    }
   };
 
   // Cargar reports filtrados por account si es admin
@@ -77,7 +78,7 @@ const ManageDashboard = () => {
     }
   }, [dashboard, dispatch]);
 
-  if (loading && dashboardId && !thisDashboard) {
+  if (loading && dashboardId && !thisInfo) {
     return (
       <Paper className="container">
         <CircularLoading />
@@ -85,7 +86,7 @@ const ManageDashboard = () => {
     );
   }
 
-  if (dashboardId && !thisDashboard && !loading) {
+  if (dashboardId && !thisInfo && !loading) {
     return (
       <Paper className="container">
         <Typography variant="h6" align="center" color="error">
@@ -103,8 +104,6 @@ const ManageDashboard = () => {
       <ManageDashboardForm
         dashboardId={dashboardId}
         bindField={bindField}
-        active={active}
-        handleSwitchChange={handleSwitchChange}
         reports={reportsList}
         dashboards={dashboardsInstancesList}
         loadingReports={loading}
@@ -116,7 +115,7 @@ const ManageDashboard = () => {
       <Grid mt={3} container justifyContent="space-between">
         <Button onClick={() => navigate(-1)}>Cancelar</Button>
         <LoadingButton onClick={handleManageDashboard} variant="contained" loading={loading} disabled={areFieldsEmpty}>
-          {dashboardId ? "Guardar cambios" : "Crear dashboard"}
+          {dashboardId ? "Guardar cambios" : "Vincular dashboard"}
         </LoadingButton>
       </Grid>
     </Paper>

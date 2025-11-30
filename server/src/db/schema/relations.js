@@ -20,7 +20,7 @@ const accountsRelations = relations(accounts, ({ many, one }) => ({
 
 const accountContractRelations = relations(accountContract, ({ one }) => ({
   account: one(accounts, {
-    fields: [accountContract.idAccounts],
+    fields: [accountContract.accountId],
     references: [accounts.id],
   }),
 }));
@@ -28,7 +28,7 @@ const accountContractRelations = relations(accountContract, ({ one }) => ({
 // users relations
 const usersRelations = relations(users, ({ one, many }) => ({
   account: one(accounts, {
-    fields: [users.accountsId],
+    fields: [users.accountId],
     references: [accounts.id],
   }),
   usersRoles: many(usersRoles),
@@ -42,11 +42,11 @@ const rolesRelations = relations(roles, ({ many }) => ({
 
 const usersRolesRelations = relations(usersRoles, ({ one }) => ({
   user: one(users, {
-    fields: [usersRoles.usersId],
+    fields: [usersRoles.userId],
     references: [users.id],
   }),
   role: one(roles, {
-    fields: [usersRoles.rolesId],
+    fields: [usersRoles.roleId],
     references: [roles.id],
   }),
 }));
@@ -58,11 +58,11 @@ const instancesRelations = relations(instances, ({ many }) => ({
 
 const accountsInstancesRelations = relations(accountsInstances, ({ one, many }) => ({
   account: one(accounts, {
-    fields: [accountsInstances.accountsId],
+    fields: [accountsInstances.accountId],
     references: [accounts.id],
   }),
   instance: one(instances, {
-    fields: [accountsInstances.instancesId],
+    fields: [accountsInstances.instanceId],
     references: [instances.id],
   }),
   accountsInstancesWorkspaces: many(accountsInstancesWorkspaces),
@@ -76,11 +76,11 @@ const workspacesRelations = relations(workspaces, ({ many }) => ({
 
 const accountsInstancesWorkspacesRelations = relations(accountsInstancesWorkspaces, ({ one }) => ({
   accountInstance: one(accountsInstances, {
-    fields: [accountsInstancesWorkspaces.idAccountsInstances],
+    fields: [accountsInstancesWorkspaces.accountInstanceId],
     references: [accountsInstances.id],
   }),
   workspace: one(workspaces, {
-    fields: [accountsInstancesWorkspaces.idWorkspaces],
+    fields: [accountsInstancesWorkspaces.workspaceId],
     references: [workspaces.id],
   }),
 }));
@@ -88,7 +88,7 @@ const accountsInstancesWorkspacesRelations = relations(accountsInstancesWorkspac
 // reports relations
 const reportsRelations = relations(reports, ({ one, many }) => ({
   workspace: one(workspaces, {
-    fields: [reports.workspacesId],
+    fields: [reports.workspaceId],
     references: [workspaces.id],
   }),
   dashboards: many(dashboards),
@@ -105,11 +105,11 @@ const dashboardsRelations = relations(dashboards, ({ one, many }) => ({
 
 const usersDashboardsRelations = relations(usersDashboards, ({ one }) => ({
   user: one(users, {
-    fields: [usersDashboards.idUsers],
+    fields: [usersDashboards.userId],
     references: [users.id],
   }),
   dashboard: one(dashboards, {
-    fields: [usersDashboards.dashboardsId],
+    fields: [usersDashboards.dashboardId],
     references: [dashboards.id],
   }),
 }));

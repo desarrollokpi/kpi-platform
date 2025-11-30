@@ -1,3 +1,4 @@
+import { clearMessage, handleError, setLoading } from "../common/utils";
 import {
   ERROR,
   LOADING,
@@ -17,42 +18,33 @@ import {
 
 import axios from "axios";
 
-const extractErrorMessage = (error) => error?.response?.data?.message || error?.message || "Unexpected error";
-
-const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
-
-export const handleError = (dispatch, error) => {
-  dispatch({ type: ERROR, payload: error.response.data });
-  setTimeout(() => {
-    dispatch({ type: CLEAR_MESSAGE, payload: error.response.data.message });
-  }, 3000);
-};
-
 export const clearWorkspaces = () => (dispatch) => {
   return dispatch({ type: CLEAR_WORKSPACES });
 };
 
 export const readWorkspacesByAdmin = () => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const res = await axios.get("/workspaces");
     dispatch({ type: READ_WORKSPACES_BY_ADMIN, payload: res.data });
   } catch (error) {
-    handleError(dispatch, error);
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const readWorkspacesByUser = () => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const res = await axios.get("/workspaces/users");
     dispatch({ type: READ_WORKSPACES_BY_USER, payload: res.data });
   } catch (error) {
-    handleError(dispatch, error);
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
@@ -60,7 +52,7 @@ export const readWorkspacesByUser = () => async (dispatch) => {
 export const getAllWorkspaces =
   (filters = {}) =>
   async (dispatch) => {
-    setLoading(dispatch, true);
+    setLoading(dispatch, true, LOADING);
     try {
       const { data } = await axios.get("/workspaces", { params: filters });
       dispatch({
@@ -68,18 +60,16 @@ export const getAllWorkspaces =
         payload: data,
       });
     } catch (error) {
-      dispatch({
-        type: ERROR,
-        payload: extractErrorMessage(error),
-      });
+      handleError(dispatch, ERROR, error);
     } finally {
-      setLoading(dispatch, false);
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
     }
   };
 
 // Get workspace by ID
 export const getWorkspaceById = (workspaceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/workspaces/${workspaceId}`);
     dispatch({
@@ -87,57 +77,54 @@ export const getWorkspaceById = (workspaceId) => async (dispatch) => {
       payload: data.workspace,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Create workspace
 export const createWorkspace = (workspaceData) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post("/workspaces", workspaceData);
     dispatch({
       type: CREATE_WORKSPACE,
       payload: data.workspace,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Update workspace
-export const updateWorkspace = (workspaceData) => async (dispatch) => {
-  setLoading(dispatch, true);
+export const updateWorkspace = (id, workspaceData) => async (dispatch) => {
+  setLoading(dispatch, true, LOADING);
   try {
-    const { id, ...updateData } = workspaceData;
-    const { data } = await axios.put(`/workspaces/${id}`, updateData);
+    const { data } = await axios.put(`/workspaces/${id}`, workspaceData);
     dispatch({
       type: UPDATE_WORKSPACE,
       payload: data.workspace,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Delete workspace (soft delete)
 export const deleteWorkspace = (workspaceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/workspaces/${workspaceId}`);
     dispatch({
@@ -145,18 +132,16 @@ export const deleteWorkspace = (workspaceId) => async (dispatch) => {
       payload: { workspaceId, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Activate workspace
 export const activateWorkspace = (workspaceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/workspaces/${workspaceId}/activate`);
     dispatch({
@@ -164,18 +149,16 @@ export const activateWorkspace = (workspaceId) => async (dispatch) => {
       payload: data.workspace,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Deactivate workspace
 export const deactivateWorkspace = (workspaceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/workspaces/${workspaceId}/deactivate`);
     dispatch({
@@ -183,47 +166,41 @@ export const deactivateWorkspace = (workspaceId) => async (dispatch) => {
       payload: data.workspace,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const getInstancesLists = (accountId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
-    const { data } = await axios.get(`/instances`, { params: { listed: true, accountId } });
+    const { data } = await axios.get(`/instances`, { params: { mode: "select", accountId } });
     dispatch({
       type: GET_INSTANCES_LIST,
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const getAccountsLists = () => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
-    const { data } = await axios.get(`/accounts`, { params: { listed: true } });
+    const { data } = await axios.get(`/accounts`, { params: { mode: "select" } });
     dispatch({
       type: GET_ACCOUNTS_LIST,
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };

@@ -2,37 +2,14 @@ const dashboardsRepository = require("./dashboards.repository");
 const permissionsService = require("../common/permissions.service");
 
 const { NotFoundError, ForbiddenError } = require("../common/exception");
-const { db } = require("../../database");
-const { eq, and, isNull } = require("drizzle-orm");
-const { dashboards, instances, users } = require("../db/schema");
-const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
+const { createApacheSuperSetClient } = require("../integrations/apache-superset.service");
 
 exports.ensureDashboardEmbeddedId = async (dashboardId) => {
-  const rows = await db
-    .select({
-      id: dashboards.id,
-      supersetId: dashboards.supersetId,
-      embeddedId: dashboards.embeddedId,
-      name: dashboards.name,
-      reportId: dashboards.reportId,
-      instanceId: instances.id,
-      baseUrl: instances.baseUrl,
-      apiUserName: instances.apiUserName,
-      apiPassword: instances.apiPassword,
-    })
-    .from(dashboards)
-    .innerJoin(
-      instances,
-      and(eq(instances.id, dashboards.supersetId), eq(instances.active, true), isNull(instances.deletedAt))
-    )
-    .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
-    .limit(1);
+  const dashboard = await dashboardsRepository.getDashboardEmbedInfo(dashboardId);
 
-  if (!rows || rows.length === 0) {
+  if (!dashboard) {
     throw new NotFoundError("Dashboard not found or not accessible");
   }
-
-  const dashboard = rows[0];
 
   // Si ya tiene embeddedId, retornar
   if (dashboard.embeddedId) {
@@ -48,7 +25,7 @@ exports.ensureDashboardEmbeddedId = async (dashboardId) => {
 
   const client = createApacheSuperSetClient(supersetInstance);
 
-  const embeddedConfig = await client.enableEmbeddedDashboard(dashboard.supersetId.toString());
+  const embeddedConfig = await client.enableEmbeddedDashboard(dashboard.instanceId.toString());
 
   // Guardar embeddedId (UUID) en la base de datos
   await dashboardsRepository.updateDashboard(dashboardId, {
@@ -68,22 +45,11 @@ exports.getDashboardEmbeddedConfig = async (dashboardId, userId) => {
 
   const dashboard = await exports.ensureDashboardEmbeddedId(dashboardId);
 
-  const userRows = await db
-    .select({
-      id: users.id,
-      mail: users.mail,
-      name: users.name,
-      accountId: users.accountsId,
-    })
-    .from(users)
-    .where(and(eq(users.id, userId), eq(users.active, true), isNull(users.deletedAt)))
-    .limit(1);
+  const user = await dashboardsRepository.findActiveUserById(userId);
 
-  if (!userRows || userRows.length === 0) {
+  if (!user) {
     throw new NotFoundError("User not found");
   }
-
-  const user = userRows[0];
 
   const supersetInstance = {
     baseUrl: dashboard.baseUrl,

@@ -1,5 +1,4 @@
 const cors = require("cors");
-const adminServices = require("./src/deprecated/admins/admins.services");
 
 const subdomains = ["testclientqa", "belenus", "maquihuano", "arnaiz"];
 

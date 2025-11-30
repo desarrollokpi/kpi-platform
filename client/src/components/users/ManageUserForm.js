@@ -1,8 +1,8 @@
 import React from "react";
-import { Typography, Switch, Grid, Alert } from "@mui/material";
+import { Typography, Grid, Alert } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageUserForm = ({ userId, bindField, active, handleSwitchChange, isSuperuser, accounts, roles }) => {
+const ManageUserForm = ({ userId, bindField, isSuperuser, accounts, roles }) => {
   const roleField = bindField("roleId");
   const selectedRole = roles?.find((role) => String(role.value) === String(roleField.value));
   const isRootRole = selectedRole && /root/i.test(String(selectedRole.labelRaw || selectedRole.label || ""));
@@ -33,12 +33,12 @@ const ManageUserForm = ({ userId, bindField, active, handleSwitchChange, isSuper
         </FormField>
 
         <FormField label="Rol para el usuario" required>
-          <FormField.Select {...roleField} options={roles} optionValue="value" display="label" />
+          <FormField.Select {...roleField} options={roles} />
         </FormField>
 
         {isSuperuser && !isRootRole && (
           <FormField label="Cuenta Asociada">
-            <FormField.Select {...bindField("accountId")} options={accounts} optionValue="value" display="label" />
+            <FormField.Select {...bindField("accountId")} options={accounts} />
           </FormField>
         )}
 
@@ -65,18 +65,9 @@ const ManageUserForm = ({ userId, bindField, active, handleSwitchChange, isSuper
             </FormField>
           </>
         )}
-
-        <FormField label="Usuario Activo" mt={2}>
-          <Switch checked={active} onChange={handleSwitchChange} />
-        </FormField>
       </Grid>
 
       <Grid item xs={12}>
-        {!isSuperuser && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            El usuario será creado automáticamente en tu cuenta (tenant). No es necesario seleccionar una cuenta.
-          </Alert>
-        )}
         <Typography variant="body2" align="center" color="textSecondary" mt={2}>
           {userId
             ? 'Los dashboards se asignan desde la lista de usuarios usando el botón "Asignar dashboards".'

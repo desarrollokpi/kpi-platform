@@ -91,7 +91,7 @@ export const rootAdminRoutes = {
     element: DashboardsPage,
   },
   createDashboard: {
-    name: "Crear Dashboard",
+    name: "Vincular Dashboard",
     path: "/dashboards/create",
     element: ManageDashboardPage,
   },
@@ -190,7 +190,7 @@ export const adminsRoutes = {
     element: DashboardsPage,
   },
   createDashboard: {
-    name: "Crear Dashboard",
+    name: "Vincular Dashboard",
     path: "/dashboards/create",
     element: ManageDashboardPage,
   },

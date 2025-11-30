@@ -28,14 +28,14 @@ exports.validateUserDashboardAccess = async (userId, dashboardId) => {
     const userRows = await db
       .select({
         id: users.id,
-        accountsId: users.accountsId,
+        accountId: users.accountId,
         userActive: users.active,
         userDeletedAt: users.deletedAt,
         accountActive: accounts.active,
         accountDeletedAt: accounts.deletedAt,
       })
       .from(users)
-      .leftJoin(accounts, eq(users.accountsId, accounts.id))
+      .leftJoin(accounts, eq(users.accountId, accounts.id))
       .where(eq(users.id, userId))
       .limit(1);
 
@@ -58,14 +58,14 @@ exports.validateUserDashboardAccess = async (userId, dashboardId) => {
         .select({ id: dashboards.id })
         .from(dashboards)
         .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
-        .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+        .innerJoin(workspaces, and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
         .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
         .limit(1);
 
       return rows.length > 0;
     }
 
-    if (!user.accountsId || !user.accountActive || user.accountDeletedAt) {
+    if (!user.accountId || !user.accountActive || user.accountDeletedAt) {
       return false;
     }
 
@@ -75,11 +75,11 @@ exports.validateUserDashboardAccess = async (userId, dashboardId) => {
         .select({ id: dashboards.id })
         .from(dashboards)
         .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
-        .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+        .innerJoin(workspaces, and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
         .innerJoin(
           accountsInstancesWorkspaces,
           and(
-            eq(accountsInstancesWorkspaces.idWorkspaces, workspaces.id),
+            eq(accountsInstancesWorkspaces.workspaceId, workspaces.id),
             eq(accountsInstancesWorkspaces.active, true),
             isNull(accountsInstancesWorkspaces.deletedAt)
           )
@@ -87,10 +87,10 @@ exports.validateUserDashboardAccess = async (userId, dashboardId) => {
         .innerJoin(
           accountsInstances,
           and(
-            eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
+            eq(accountsInstances.id, accountsInstancesWorkspaces.accountInstanceId),
             eq(accountsInstances.active, true),
             isNull(accountsInstances.deletedAt),
-            eq(accountsInstances.accountsId, user.accountsId)
+            eq(accountsInstances.accountId, user.accountId)
           )
         )
         .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
@@ -103,23 +103,23 @@ exports.validateUserDashboardAccess = async (userId, dashboardId) => {
     const accessRows = await db
       .select({ id: dashboards.id })
       .from(users)
-      .innerJoin(usersDashboards, and(eq(usersDashboards.idUsers, users.id), eq(usersDashboards.active, true), isNull(usersDashboards.deletedAt)))
-      .innerJoin(dashboards, and(eq(usersDashboards.dashboardsId, dashboards.id), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
+      .innerJoin(usersDashboards, and(eq(usersDashboards.userId, users.id), eq(usersDashboards.active, true), isNull(usersDashboards.deletedAt)))
+      .innerJoin(dashboards, and(eq(usersDashboards.dashboardId, dashboards.id), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
       .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
-      .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+      .innerJoin(workspaces, and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
       .innerJoin(
         accountsInstancesWorkspaces,
         and(
-          eq(accountsInstancesWorkspaces.idWorkspaces, workspaces.id),
+          eq(accountsInstancesWorkspaces.workspaceId, workspaces.id),
           eq(accountsInstancesWorkspaces.active, true),
           isNull(accountsInstancesWorkspaces.deletedAt)
         )
       )
       .innerJoin(
         accountsInstances,
-        and(eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances), eq(accountsInstances.active, true), isNull(accountsInstances.deletedAt))
+        and(eq(accountsInstances.id, accountsInstancesWorkspaces.accountInstanceId), eq(accountsInstances.active, true), isNull(accountsInstances.deletedAt))
       )
-      .where(and(eq(users.id, userId), eq(dashboards.id, dashboardId), eq(accountsInstances.accountsId, user.accountsId)))
+      .where(and(eq(users.id, userId), eq(dashboards.id, dashboardId), eq(accountsInstances.accountId, user.accountId)))
       .limit(1);
 
     return accessRows.length > 0;
@@ -141,14 +141,14 @@ exports.getUserAccessibleDashboards = async (userId) => {
     const userRows = await db
       .select({
         id: users.id,
-        accountsId: users.accountsId,
+        accountId: users.accountId,
         userActive: users.active,
         userDeletedAt: users.deletedAt,
         accountActive: accounts.active,
         accountDeletedAt: accounts.deletedAt,
       })
       .from(users)
-      .leftJoin(accounts, eq(users.accountsId, accounts.id))
+      .leftJoin(accounts, eq(users.accountId, accounts.id))
       .where(eq(users.id, userId))
       .limit(1);
 
@@ -170,13 +170,13 @@ exports.getUserAccessibleDashboards = async (userId) => {
       const dashboardRows = await db
         .select({
           id: dashboards.id,
-          supersetId: dashboards.supersetId,
+          instanceId: dashboards.instanceId,
           supersetDashboardId: dashboards.supersetDashboardId,
           embeddedId: dashboards.embeddedId,
           name: dashboards.name,
           reportId: dashboards.reportId,
           reportName: reports.name,
-          workspacesId: reports.workspacesId,
+          workspaceId: reports.workspaceId,
           workspaceName: workspaces.name,
           active: dashboards.active,
           createdAt: dashboards.createdAt,
@@ -184,13 +184,13 @@ exports.getUserAccessibleDashboards = async (userId) => {
         })
         .from(dashboards)
         .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
-        .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+        .innerJoin(workspaces, and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
         .where(and(eq(dashboards.active, true), isNull(dashboards.deletedAt)));
 
       return dashboardRows;
     }
 
-    if (!user.accountsId || !user.accountActive || user.accountDeletedAt) {
+    if (!user.accountId || !user.accountActive || user.accountDeletedAt) {
       return [];
     }
 
@@ -199,13 +199,13 @@ exports.getUserAccessibleDashboards = async (userId) => {
       const dashboardRows = await db
         .select({
           id: dashboards.id,
-          supersetId: dashboards.supersetId,
+          instanceId: dashboards.instanceId,
           supersetDashboardId: dashboards.supersetDashboardId,
           embeddedId: dashboards.embeddedId,
           name: dashboards.name,
           reportId: dashboards.reportId,
           reportName: reports.name,
-          workspacesId: reports.workspacesId,
+          workspaceId: reports.workspaceId,
           workspaceName: workspaces.name,
           instanceId: instances.id,
           instanceName: instances.name,
@@ -216,25 +216,25 @@ exports.getUserAccessibleDashboards = async (userId) => {
         })
         .from(dashboards)
         .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
-        .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+        .innerJoin(workspaces, and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
         .innerJoin(
           accountsInstancesWorkspaces,
           and(
-            eq(accountsInstancesWorkspaces.idWorkspaces, workspaces.id),
+            eq(accountsInstancesWorkspaces.workspaceId, workspaces.id),
             eq(accountsInstancesWorkspaces.active, true),
             isNull(accountsInstancesWorkspaces.deletedAt)
           )
         )
-        .innerJoin(
-          accountsInstances,
-          and(
-            eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
-            eq(accountsInstances.active, true),
-            isNull(accountsInstances.deletedAt),
-            eq(accountsInstances.accountsId, user.accountsId)
+      .innerJoin(
+        accountsInstances,
+        and(
+          eq(accountsInstances.id, accountsInstancesWorkspaces.accountInstanceId),
+          eq(accountsInstances.active, true),
+          isNull(accountsInstances.deletedAt),
+          eq(accountsInstances.accountId, user.accountId)
           )
         )
-        .innerJoin(instances, and(eq(instances.id, accountsInstances.instancesId), eq(instances.active, true), isNull(instances.deletedAt)))
+        .innerJoin(instances, and(eq(instances.id, accountsInstances.instanceId), eq(instances.active, true), isNull(instances.deletedAt)))
         .where(and(eq(dashboards.active, true), isNull(dashboards.deletedAt)));
 
       return dashboardRows;
@@ -244,13 +244,13 @@ exports.getUserAccessibleDashboards = async (userId) => {
     const dashboardRows = await db
       .select({
         id: dashboards.id,
-        supersetId: dashboards.supersetId,
+        instanceId: dashboards.instanceId,
         supersetDashboardId: dashboards.supersetDashboardId,
         embeddedId: dashboards.embeddedId,
         name: dashboards.name,
         reportId: dashboards.reportId,
         reportName: reports.name,
-        workspacesId: reports.workspacesId,
+        workspaceId: reports.workspaceId,
         workspaceName: workspaces.name,
         instanceId: instances.id,
         instanceName: instances.name,
@@ -260,24 +260,24 @@ exports.getUserAccessibleDashboards = async (userId) => {
         updatedAt: dashboards.updatedAt,
       })
       .from(users)
-      .innerJoin(usersDashboards, and(eq(usersDashboards.idUsers, users.id), eq(usersDashboards.active, true), isNull(usersDashboards.deletedAt)))
-      .innerJoin(dashboards, and(eq(usersDashboards.dashboardsId, dashboards.id), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
+      .innerJoin(usersDashboards, and(eq(usersDashboards.userId, users.id), eq(usersDashboards.active, true), isNull(usersDashboards.deletedAt)))
+      .innerJoin(dashboards, and(eq(usersDashboards.dashboardId, dashboards.id), eq(dashboards.active, true), isNull(dashboards.deletedAt)))
       .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
-      .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+      .innerJoin(workspaces, and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
       .innerJoin(
         accountsInstancesWorkspaces,
         and(
-          eq(accountsInstancesWorkspaces.idWorkspaces, workspaces.id),
+          eq(accountsInstancesWorkspaces.workspaceId, workspaces.id),
           eq(accountsInstancesWorkspaces.active, true),
           isNull(accountsInstancesWorkspaces.deletedAt)
         )
       )
       .innerJoin(
         accountsInstances,
-        and(eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances), eq(accountsInstances.active, true), isNull(accountsInstances.deletedAt))
+        and(eq(accountsInstances.id, accountsInstancesWorkspaces.accountInstanceId), eq(accountsInstances.active, true), isNull(accountsInstances.deletedAt))
       )
-      .innerJoin(instances, and(eq(instances.id, accountsInstances.instancesId), eq(instances.active, true), isNull(instances.deletedAt)))
-      .where(and(eq(users.id, userId), eq(users.active, true), isNull(users.deletedAt), eq(accountsInstances.accountsId, user.accountsId)));
+      .innerJoin(instances, and(eq(instances.id, accountsInstances.instanceId), eq(instances.active, true), isNull(instances.deletedAt)))
+      .where(and(eq(users.id, userId), eq(users.active, true), isNull(users.deletedAt), eq(accountsInstances.accountId, user.accountId)));
 
     return dashboardRows;
   } catch (error) {
@@ -298,7 +298,7 @@ exports.validateTenantScope = async (userId, targetAccountId) => {
   try {
     const userRows = await db
       .select({
-        accountsId: users.accountsId,
+        accountId: users.accountId,
       })
       .from(users)
       .where(and(eq(users.id, userId), eq(users.active, true), isNull(users.deletedAt)))
@@ -316,7 +316,7 @@ exports.validateTenantScope = async (userId, targetAccountId) => {
     }
 
     // Validar mismo tenant
-    return user.accountsId === targetAccountId;
+    return user.accountId === targetAccountId;
   } catch (error) {
     console.error("Error validating tenant scope:", error);
     return false;
@@ -326,20 +326,20 @@ exports.validateTenantScope = async (userId, targetAccountId) => {
 /**
  * Valida que se puede asignar un rol a un usuario
  * Reglas:
- * - root_admin SOLO puede tener accountsId = NULL
- * - tenant_admin/tenant_user DEBEN tener accountsId válido
+ * - root_admin SOLO puede tener accountId = NULL
+ * - tenant_admin/tenant_user DEBEN tener accountId válido
  *
  * @param {string} roleName - Nombre del rol a asignar
- * @param {number|null} userAccountsId - accountsId del usuario
+ * @param {number|null} userAccountId - accountId del usuario
  * @throws {Error} Si la asignación viola las reglas
  */
-exports.validateRoleAssignment = (roleName, userAccountsId) => {
-  if (roleName === ROLE_NAMES.ROOT_ADMIN && userAccountsId !== null) {
-    throw new Error("root_admin role can only be assigned to users with accountsId = NULL");
+exports.validateRoleAssignment = (roleName, userAccountId) => {
+  if (roleName === ROLE_NAMES.ROOT_ADMIN && userAccountId !== null) {
+    throw new Error("root_admin role can only be assigned to users with accountId = NULL");
   }
 
-  if ((roleName === ROLE_NAMES.TENANT_ADMIN || roleName === ROLE_NAMES.TENANT_USER) && !userAccountsId) {
-    throw new Error(`${roleName} role requires a valid accountsId (cannot be NULL)`);
+  if ((roleName === ROLE_NAMES.TENANT_ADMIN || roleName === ROLE_NAMES.TENANT_USER) && !userAccountId) {
+    throw new Error(`${roleName} role requires a valid accountId (cannot be NULL)`);
   }
 };
 
@@ -358,13 +358,13 @@ exports.validateRoleAssignment = (roleName, userAccountsId) => {
 exports.canAssignDashboard = async (tenantAdminId, targetUserId, dashboardId) => {
   try {
     const adminRows = await db
-      .select({ accountsId: users.accountsId })
+      .select({ accountId: users.accountId })
       .from(users)
       .where(and(eq(users.id, tenantAdminId), eq(users.active, true), isNull(users.deletedAt)))
       .limit(1);
 
     const targetRows = await db
-      .select({ accountsId: users.accountsId })
+      .select({ accountId: users.accountId })
       .from(users)
       .where(and(eq(users.id, targetUserId), eq(users.active, true), isNull(users.deletedAt)))
       .limit(1);
@@ -373,8 +373,8 @@ exports.canAssignDashboard = async (tenantAdminId, targetUserId, dashboardId) =>
       return false;
     }
 
-    const adminAccountId = adminRows[0].accountsId;
-    const targetAccountId = targetRows[0].accountsId;
+    const adminAccountId = adminRows[0].accountId;
+    const targetAccountId = targetRows[0].accountId;
 
     if (!adminAccountId || !targetAccountId || adminAccountId !== targetAccountId) {
       return false;
@@ -384,20 +384,20 @@ exports.canAssignDashboard = async (tenantAdminId, targetUserId, dashboardId) =>
       .select({ id: dashboards.id })
       .from(dashboards)
       .innerJoin(reports, and(eq(dashboards.reportId, reports.id), eq(reports.active, true), isNull(reports.deletedAt)))
-      .innerJoin(workspaces, and(eq(reports.workspacesId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
+      .innerJoin(workspaces, and(eq(reports.workspaceId, workspaces.id), eq(workspaces.active, true), isNull(workspaces.deletedAt)))
       .innerJoin(
         accountsInstancesWorkspaces,
         and(
-          eq(accountsInstancesWorkspaces.idWorkspaces, workspaces.id),
+          eq(accountsInstancesWorkspaces.workspaceId, workspaces.id),
           eq(accountsInstancesWorkspaces.active, true),
           isNull(accountsInstancesWorkspaces.deletedAt)
         )
       )
       .innerJoin(
         accountsInstances,
-        and(eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances), eq(accountsInstances.active, true), isNull(accountsInstances.deletedAt))
+        and(eq(accountsInstances.id, accountsInstancesWorkspaces.accountInstanceId), eq(accountsInstances.active, true), isNull(accountsInstances.deletedAt))
       )
-      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt), eq(accountsInstances.accountsId, adminAccountId)))
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.active, true), isNull(dashboards.deletedAt), eq(accountsInstances.accountId, adminAccountId)))
       .limit(1);
 
     return dashboardRows.length > 0;
@@ -420,8 +420,8 @@ exports.getUserRoles = async (userId) => {
         name: roles.name,
       })
       .from(usersRoles)
-      .innerJoin(roles, and(eq(usersRoles.rolesId, roles.id), eq(roles.active, true), isNull(roles.deletedAt)))
-      .where(and(eq(usersRoles.usersId, userId), eq(usersRoles.active, true), isNull(usersRoles.deletedAt)));
+      .innerJoin(roles, and(eq(usersRoles.roleId, roles.id), eq(roles.active, true), isNull(roles.deletedAt)))
+      .where(and(eq(usersRoles.userId, userId), eq(usersRoles.active, true), isNull(usersRoles.deletedAt)));
 
     return rows.map((row) => row.name);
   } catch (error) {

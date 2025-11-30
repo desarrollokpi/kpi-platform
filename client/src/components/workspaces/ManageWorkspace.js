@@ -4,12 +4,14 @@ import useForm from "../../hooks/useForm";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { createWorkspace, getInstancesLists, updateWorkspace, getAccountsLists } from "../../state/workspaces/workspacesActions";
 import { useParams, useNavigate } from "react-router-dom";
-import useToggle from "../../hooks/useToggle";
 import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
 import useSuperuser from "../../hooks/useSuperuser";
+import useAccountId from "../../hooks/useAccountId";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ManageWorkspaceForm from "./ManageWorkspaceForm";
 import CircularLoading from "../layout/CircularLoading";
+
+const COLUMNS = ["name", "accountId", "instanceId"];
 
 const ManageWorkspace = () => {
   const dispatch = useDispatch();
@@ -18,27 +20,32 @@ const ManageWorkspace = () => {
   const { workspaceId } = useParams();
 
   const { workspaces, accountsList, instancesList, loading } = useSelector(({ workspaces }) => workspaces, shallowEqual);
-  const { user } = useSelector(({ auth }) => auth, shallowEqual);
-  const accountId = useMemo(() => user?.accountId || null, [user]);
+  const accountId = useAccountId();
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
-  const initialState = {
-    name: "",
-    accountId: accountId || "",
-    instanceId: "",
-  };
-
-  let thisWorkspace = undefined;
-
-  if (workspaceId) {
-    thisWorkspace = workspaces.find((workspace) => workspace.id === parseInt(workspaceId));
-  }
+  const thisInfo = useMemo(() => {
+    if (!workspaceId) return null;
+    const id = Number(workspaceId);
+    if (Number.isNaN(id)) return null;
+    return workspaces.find((workspace) => workspace.id === id) || null;
+  }, [workspaceId, workspaces]);
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/workspaces`);
 
-  const [workspace, bindField, areFieldsEmpty] = useForm(workspaceId ? thisWorkspace : initialState);
+  const formData = useMemo(
+    () =>
+      COLUMNS.reduce((acc, column) => {
+        if (column === "accountId") {
+          acc.accountId = thisInfo?.accountId ?? accountId ?? "";
+          return acc;
+        }
+        acc[column] = thisInfo?.[column] ?? "";
+        return acc;
+      }, {}),
+    [thisInfo, accountId]
+  );
 
-  const [active, handleSwitchChange] = useToggle(workspaceId ? thisWorkspace?.active : true);
+  const [workspace, bindField, areFieldsEmpty] = useForm(formData);
 
   useEffect(() => {
     if (isSuperuser) {
@@ -52,29 +59,33 @@ const ManageWorkspace = () => {
     }
   }, [dispatch, workspace?.accountId]);
 
-  // Solo los superusers pueden gestionar workspaces
-  if (!isSuperuser) {
-    return (
-      <Paper className="container">
-        <Typography variant="h6" align="center" color="error">
-          No tienes permisos para acceder a esta página
-        </Typography>
-        <Grid container justifyContent="center" mt={3}>
-          <Button onClick={() => navigate("/")}>Volver al inicio</Button>
-        </Grid>
-      </Paper>
-    );
-  }
+  const handleManageWorkspace = async () => {
+    const id = workspaceId ? Number(workspaceId) : null;
+    const workspaceData = {
+      ...workspace,
+    };
 
-  const handleManageWorkspace = () => {
-    const workspaceData = { ...workspace, active };
-
-    dispatch(workspaceId ? updateWorkspace(workspaceData) : createWorkspace(workspaceData));
-
-    buttonHasBeenClicked();
+    const action = await dispatch(id ? updateWorkspace(id, workspaceData) : createWorkspace(workspaceData));
+    if (action) {
+      buttonHasBeenClicked();
+    }
   };
 
-  if (loading && workspaceId && !thisWorkspace) {
+  // // Solo los superusers pueden gestionar workspaces
+  // if (!isSuperuser) {
+  //   return (
+  //     <Paper className="container">
+  //       <Typography variant="h6" align="center" color="error">
+  //         No tienes permisos para acceder a esta página
+  //       </Typography>
+  //       <Grid container justifyContent="center" mt={3}>
+  //         <Button onClick={() => navigate("/")}>Volver al inicio</Button>
+  //       </Grid>
+  //     </Paper>
+  //   );
+  // }
+
+  if (loading && workspaceId && !thisInfo) {
     return (
       <Paper className="container">
         <CircularLoading />
@@ -82,7 +93,7 @@ const ManageWorkspace = () => {
     );
   }
 
-  if (workspaceId && !thisWorkspace && !loading) {
+  if (workspaceId && !thisInfo && !loading) {
     return (
       <Paper className="container">
         <Typography variant="h6" align="center" color="error">
@@ -100,11 +111,9 @@ const ManageWorkspace = () => {
       <ManageWorkspaceForm
         workspaceId={workspaceId}
         bindField={bindField}
-        active={active}
         isSuperuser={isSuperuser}
         accounts={accountsList}
         instances={instancesList}
-        handleSwitchChange={handleSwitchChange}
         loading={loading}
         accountId={workspace?.accountId}
       />

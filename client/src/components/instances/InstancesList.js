@@ -17,8 +17,8 @@ const InstancesList = () => {
 
   const [page, setPage] = useState(() => {
     const pageParam = searchParams.get("page");
-    const parsed = pageParam ? parseInt(pageParam, 10) : 0;
-    return Number.isNaN(parsed) ? 0 : parsed;
+    const parsed = pageParam ? parseInt(pageParam, 10) : 1;
+    return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
   });
   const [rowsPerPage, setRowsPerPage] = useState(() => {
     const rppParam = searchParams.get("rowsPerPage");
@@ -61,12 +61,9 @@ const InstancesList = () => {
     },
     {
       tooltip: "Eliminar",
-      onClick: useCallback(
-        (instance) => {
-          setDeleteTarget(instance);
-        },
-        []
-      ),
+      onClick: useCallback((instance) => {
+        setDeleteTarget(instance);
+      }, []),
       color: "error",
       icon: <DeleteIcon />,
     },
@@ -78,7 +75,7 @@ const InstancesList = () => {
 
   const handleRowsPerPageChange = useCallback((newRowsPerPage) => {
     setRowsPerPage(newRowsPerPage);
-    setPage(0);
+    setPage(1);
   }, []);
 
   const handleSwitchChange = useCallback((event) => {
@@ -102,7 +99,7 @@ const InstancesList = () => {
       getAllInstances({
         active: activeFilter,
         limit: rowsPerPage,
-        offset: page * rowsPerPage,
+        offset: (page - 1) * rowsPerPage,
         accountId: user?.accountId || null,
       })
     );
@@ -157,9 +154,7 @@ const InstancesList = () => {
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
         <DialogTitle>Eliminar instancia</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">
-            ¿Seguro que deseas eliminar la instancia "{deleteTarget?.name}"?
-          </Typography>
+          <Typography variant="body2">¿Seguro que deseas eliminar la instancia "{deleteTarget?.name}"?</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>

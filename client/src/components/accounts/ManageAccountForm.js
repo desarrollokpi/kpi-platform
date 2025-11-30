@@ -1,8 +1,8 @@
 import React from "react";
-import { Typography, Switch, Grid, Box } from "@mui/material";
+import { Typography, Grid, Alert } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageAccountForm = ({ accountId, bindField, active, handleSwitchChange, logoAddress }) => {
+const ManageAccountForm = ({ accountId, bindField, message = null }) => {
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -10,7 +10,20 @@ const ManageAccountForm = ({ accountId, bindField, active, handleSwitchChange, l
           {accountId ? "Editar Cuenta (Tenant)" : "Crear Nueva Cuenta (Tenant)"}
         </Typography>
       </Grid>
-
+      {message && message !== "" && (
+        <Grid
+          container
+          direction="row"
+          sx={{
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Grid item xs={3}>
+            <Alert severity="error">{message}</Alert>
+          </Grid>
+        </Grid>
+      )}
       <Grid item container justifyContent="center" xs={12} md={8} alignItems="center">
         <FormField label="Nombre de la Cuenta" required>
           <FormField.TextField {...bindField("name")} placeholder="Ej: Empresa ABC" helperText="Nombre identificador de la empresa o cliente" />
@@ -48,28 +61,6 @@ const ManageAccountForm = ({ accountId, bindField, active, handleSwitchChange, l
             placeholder="https://empresa.com/logo.png"
             helperText="URL pública del logo de la empresa (opcional). Debe ser accesible sin autenticación."
           />
-        </FormField>
-
-        <Box mt={1} mb={2}>
-          <Typography variant="caption" color="textSecondary">
-            Vista previa del logo:
-          </Typography>
-          <Box mt={1} sx={{ border: "1px solid #eee", borderRadius: 1, p: 1, display: "inline-block" }}>
-            <img
-              src={logoAddress && /^https?:\/\//.test(logoAddress) ? logoAddress : "/fallback-logo.png"}
-              alt="Account logo preview"
-              style={{ maxHeight: 48, maxWidth: 200, objectFit: "contain" }}
-              onError={(e) => {
-                if (e.target.src.indexOf("/fallback-logo.png") === -1) {
-                  e.target.src = "/fallback-logo.png";
-                }
-              }}
-            />
-          </Box>
-        </Box>
-
-        <FormField label="Cuenta Activa" mt={2}>
-          <Switch checked={active} onChange={handleSwitchChange} />
         </FormField>
       </Grid>
 

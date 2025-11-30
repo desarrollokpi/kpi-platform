@@ -4,13 +4,15 @@ import useForm from "../../hooks/useForm";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { createReport, updateReport, getWorkspacesListForReports } from "../../state/reports/reportsActions";
 import { useParams, useNavigate } from "react-router-dom";
-import useToggle from "../../hooks/useToggle";
-import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
-import useSuperuser from "../../hooks/useSuperuser";
-import useAdmin from "../../hooks/useAdmin";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ManageReportForm from "./ManageReportForm";
 import CircularLoading from "../layout/CircularLoading";
+import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
+import useSuperuser from "../../hooks/useSuperuser";
+import useAdmin from "../../hooks/useAdmin";
+import useAccountId from "../../hooks/useAccountId";
+
+const COLUMNS = ["name", "workspaceId"];
 
 const ManageReport = () => {
   const dispatch = useDispatch();
@@ -20,26 +22,28 @@ const ManageReport = () => {
   const { reportId } = useParams();
 
   const { reports, workspacesList, loading } = useSelector(({ reports }) => reports, shallowEqual);
-  const { user } = useSelector(({ auth }) => auth, shallowEqual);
-  const accountId = useMemo(() => user?.accountId || null, [user]);
+  const accountId = useAccountId();
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
-  const initialState = {
-    name: "",
-    workspacesId: "",
-  };
-
-  let thisReport = undefined;
-
-  if (reportId) {
-    thisReport = reports.find((report) => report.id === parseInt(reportId));
-  }
+  const thisInfo = useMemo(() => {
+    if (!reportId) return null;
+    const id = Number(reportId);
+    if (Number.isNaN(id)) return null;
+    return reports.find((report) => report.id === id) || null;
+  }, [reportId, reports]);
 
   const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/reports`);
 
-  const [report, bindField, areFieldsEmpty] = useForm(reportId ? thisReport : initialState);
+  const formData = useMemo(
+    () =>
+      COLUMNS.reduce((acc, column) => {
+        acc[column] = thisInfo?.[column] ?? "";
+        return acc;
+      }, {}),
+    [thisInfo]
+  );
 
-  const [active, handleSwitchChange] = useToggle(reportId ? thisReport?.active : true);
+  const [report, bindField, areFieldsEmpty] = useForm(formData);
 
   useEffect(() => {
     // Load workspaces list based on user role
@@ -53,6 +57,18 @@ const ManageReport = () => {
 
     dispatch(getWorkspacesListForReports(filters));
   }, [dispatch, isAdmin, isSuperuser, accountId]);
+
+  const handleManageReport = async () => {
+    const id = reportId ? Number(reportId) : null;
+    const reportData = {
+      ...report,
+    };
+
+    const action = await dispatch(id ? updateReport(id, reportData) : createReport(reportData));
+    if (action) {
+      buttonHasBeenClicked();
+    }
+  };
 
   // Only superusers and admins can manage reports
   if (!isSuperuser && !isAdmin) {
@@ -68,15 +84,7 @@ const ManageReport = () => {
     );
   }
 
-  const handleManageReport = () => {
-    const reportData = { ...report, active };
-
-    dispatch(reportId ? updateReport(reportData) : createReport(reportData));
-
-    buttonHasBeenClicked();
-  };
-
-  if (loading && reportId && !thisReport) {
+  if (loading && reportId && !thisInfo) {
     return (
       <Paper className="container">
         <CircularLoading />
@@ -84,7 +92,7 @@ const ManageReport = () => {
     );
   }
 
-  if (reportId && !thisReport && !loading) {
+  if (reportId && !thisInfo && !loading) {
     return (
       <Paper className="container">
         <Typography variant="h6" align="center" color="error">
@@ -99,16 +107,7 @@ const ManageReport = () => {
 
   return (
     <Paper className="container">
-      <ManageReportForm
-        reportId={reportId}
-        bindField={bindField}
-        active={active}
-        isSuperuser={isSuperuser}
-        isAdmin={isAdmin}
-        workspaces={workspacesList}
-        handleSwitchChange={handleSwitchChange}
-        loading={loading}
-      />
+      <ManageReportForm reportId={reportId} bindField={bindField} isSuperuser={isSuperuser} isAdmin={isAdmin} workspaces={workspacesList} loading={loading} />
 
       <Grid mt={3} container justifyContent="space-between">
         <Button onClick={() => navigate(`/${prefixRoute}/reports`)}>Cancelar</Button>

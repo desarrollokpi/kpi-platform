@@ -2,14 +2,9 @@ const authRepository = require("./auth.repository");
 const encrypt = require("../common/encrypt");
 const signToken = require("../common/signToken");
 const { ROLE_NAMES } = require("../constants/roles");
-const { UnauthorizedError, ForbiddenError, ConflictError } = require("../common/exception");
+const { UnauthorizedError, ForbiddenError } = require("../common/exception");
 
 const usersRedisRepository = require("./auth.redis.repository");
-
-exports.isSessionActive = async (userId) => {
-  const sessionUserId = await usersRedisRepository.getById(userId);
-  return sessionUserId === userId;
-};
 
 exports.signIn = async (identifier, password, subdomain = null) => {
   const user = await authRepository.findUserForAuthentication(identifier);
@@ -22,7 +17,7 @@ exports.signIn = async (identifier, password, subdomain = null) => {
     throw new ForbiddenError("Usuario inactivo. Contacte al administrador");
   }
 
-  if (subdomain && user.accountsId) {
+  if (subdomain && user.accountId) {
     if (!user.accountSubdomain || user.accountSubdomain !== subdomain) {
       throw new UnauthorizedError("Usuario no autorizado para este tenant");
     }
@@ -37,11 +32,6 @@ exports.signIn = async (identifier, password, subdomain = null) => {
     throw new UnauthorizedError("Usuario o contraseña inválidos");
   }
 
-  const sessionActive = await exports.isSessionActive(user.id);
-  if (sessionActive) {
-    throw new ConflictError(`El usuario ${user.userName} ya tiene una sesión activa. Cierre la sesión anterior o contacte al administrador`);
-  }
-
   await usersRedisRepository.addById(user.id);
 
   let primaryRole = ROLE_NAMES.USER;
@@ -54,7 +44,7 @@ exports.signIn = async (identifier, password, subdomain = null) => {
   const token = signToken({
     id: user.id,
     role: primaryRole,
-    accountId: user.accountsId,
+    accountId: user.accountId,
     userName: user.userName,
     mail: user.mail,
     name: user.name,
@@ -66,7 +56,7 @@ exports.signIn = async (identifier, password, subdomain = null) => {
       userName: user.userName,
       mail: user.mail,
       name: user.name,
-      accountId: user.accountsId,
+      accountId: user.accountId,
       account: user.accountId
         ? {
             id: user.accountId,
@@ -91,7 +81,9 @@ exports.refreshSession = async (userId) => {
 };
 
 exports.validateSession = async (userId) => {
-  return await exports.isSessionActive(userId);
+  // A session is considered valid as long as it exists in Redis and has not expired
+  const sessionUserId = await usersRedisRepository.getById(userId);
+  return sessionUserId === userId;
 };
 
 exports.getCurrentUser = async (userId) => {
@@ -105,7 +97,7 @@ exports.getCurrentUser = async (userId) => {
     id: user.id,
     userName: user.userName,
     mail: user.mail,
-    accountId: user.accountsId,
+    accountId: user.accountId,
     account: user.accountId
       ? {
           id: user.accountId,
@@ -117,8 +109,4 @@ exports.getCurrentUser = async (userId) => {
     roles: user.roles ? user.roles.map((r) => r.name) : [],
     active: user.active,
   };
-};
-
-exports.timeAvailableInSession = async (userId) => {
-  return await usersRedisRepository.getTimeToLiveById(userId);
 };

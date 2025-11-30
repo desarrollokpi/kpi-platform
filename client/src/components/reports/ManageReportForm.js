@@ -1,8 +1,8 @@
 import React from "react";
-import { Typography, Switch, Grid, Alert } from "@mui/material";
+import { Typography, Grid, Alert } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageReportForm = ({ reportId, bindField, active, handleSwitchChange, workspaces, isSuperuser, isAdmin, loading }) => {
+const ManageReportForm = ({ reportId, bindField, workspaces, isSuperuser, isAdmin, loading }) => {
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -18,17 +18,13 @@ const ManageReportForm = ({ reportId, bindField, active, handleSwitchChange, wor
 
         <FormField label="Workspace de Superset" required>
           <FormField.Select
-            {...bindField("workspacesId")}
+            {...bindField("workspaceId")}
             options={workspaces}
             optionValue="id"
             display="name"
             helperText="Workspace donde está ubicado este reporte en Superset"
             loading={loading}
           />
-        </FormField>
-
-        <FormField label="Reporte Activo" mt={2}>
-          <Switch checked={active} onChange={handleSwitchChange} />
         </FormField>
       </Grid>
 

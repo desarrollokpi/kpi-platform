@@ -1,6 +1,6 @@
 const permissionsService = require("../common/permissions.service");
 const dashboardsServices = require("./dashboards.services");
-const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
+const { createApacheSuperSetClient } = require("../integrations/apache-superset.service");
 const { ForbiddenError, NotFoundError } = require("../common/exception");
 const { stringify } = require("csv-stringify/sync");
 
@@ -16,8 +16,6 @@ exports.exportDashboardDataToCsv = async (dashboardId, userId) => {
   if (!dashboardInfo) {
     throw new NotFoundError("Dashboard not found or not accessible");
   }
-
-  console.log("dashboardInfo", dashboardInfo);
 
   try {
     const supersetClient = createApacheSuperSetClient({
@@ -50,11 +48,9 @@ exports.exportDashboardDataToCsv = async (dashboardId, userId) => {
       console.error("Error fetching dashboard from Superset for CSV:", dashboardError.message);
     }
 
-    let allData = [];
-
-    console.log("dashboard", dashboard);
-
     const dashboardTitle = dashboard?.dashboard_title || dashboardInfo.name || "dashboard";
+
+    const files = [];
 
     if (dashboard && dashboard.position_json) {
       let jsonPosition;
@@ -65,7 +61,7 @@ exports.exportDashboardDataToCsv = async (dashboardId, userId) => {
       }
 
       if (jsonPosition && typeof jsonPosition === "object") {
-        const charts = [];
+        const datasetsMap = new Map();
 
         for (const [key, value] of Object.entries(jsonPosition)) {
           if (!value || typeof value !== "object") continue;
@@ -81,48 +77,106 @@ exports.exportDashboardDataToCsv = async (dashboardId, userId) => {
 
           try {
             const chartData = await supersetClient.getChart(chartId);
-            console.log("chartData", chartData);
-
             const chartName = chartNameFromMeta || chartData.slice_name || `Chart ${chartId}`;
-            let queryText = chartData.query_context || chartData.params || "";
 
-            charts.push({
-              name: chartName,
-              query: queryText,
+            const rawQueryContext = chartData.query_context || chartData.queryContext || chartData.query_context_json;
+            if (!rawQueryContext) {
+              continue;
+            }
+
+            let queryContext;
+            try {
+              queryContext = typeof rawQueryContext === "string" ? JSON.parse(rawQueryContext) : rawQueryContext;
+            } catch (parseQcError) {
+              console.error(`Error parsing query_context for chart ${chartId}:`, parseQcError.message);
+              continue;
+            }
+
+            const datasource = queryContext.datasource || queryContext.form_data?.datasource;
+            let datasetId = null;
+
+            if (datasource && typeof datasource === "object" && typeof datasource.id === "number") {
+              datasetId = datasource.id;
+            } else if (typeof datasource === "string") {
+              // Typical format: "<datasetId>__<type>"
+              const idPart = datasource.split("__")[0];
+              const parsedId = parseInt(idPart, 10);
+              datasetId = Number.isNaN(parsedId) ? null : parsedId;
+            }
+
+            if (!datasetId) {
+              continue;
+            }
+
+            if (!datasetsMap.has(datasetId)) {
+              datasetsMap.set(datasetId, {
+                datasetId,
+                charts: [],
+              });
+            }
+
+            const group = datasetsMap.get(datasetId);
+            group.charts.push({
+              chartId,
+              chartName,
+              queryContext,
             });
           } catch (chartError) {
-            console.log("chartError", chartError);
             console.error(`Error fetching chart ${chartId}:`, chartError.message);
           }
         }
 
-        if (charts.length > 0) {
-          const row = {};
-          charts.forEach((chart) => {
-            row[chart.name] = chart.query;
-          });
-          allData.push(row);
+        // For each dataset, execute one query (first chart of that dataset) and export its data
+        for (const [datasetId, group] of datasetsMap.entries()) {
+          if (!group.charts.length) continue;
+
+          const representative = group.charts[0];
+
+          try {
+            const dataResponse = await supersetClient.getChartData(representative.queryContext);
+            const result = Array.isArray(dataResponse?.result) ? dataResponse.result[0] : null;
+            const rows = Array.isArray(result?.data) ? result.data : [];
+
+            let csvContent;
+            if (rows.length > 0) {
+              csvContent = stringify(rows, {
+                header: true,
+              });
+            } else {
+              csvContent = "No data available for this dataset\n";
+            }
+
+            const timestamp = new Date().toISOString().split("T")[0];
+            const safeDashboardTitle = dashboardTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+            const filename = `${safeDashboardTitle}_dataset_${datasetId}_${timestamp}.csv`;
+
+            files.push({
+              datasetId,
+              filename,
+              contentType: "text/csv",
+              csv: csvContent,
+            });
+          } catch (dataError) {
+            console.error(`Error fetching data for dataset ${datasetId}:`, dataError.message);
+          }
         }
       }
     }
 
-    let csvContent;
-    if (allData.length > 0) {
-      csvContent = stringify(allData, {
-        header: true,
+    if (!files.length) {
+      const timestamp = new Date().toISOString().split("T")[0];
+      const safeDashboardTitle = dashboardTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      const fallbackFilename = `${safeDashboardTitle}_dataset_empty_${timestamp}.csv`;
+
+      files.push({
+        datasetId: null,
+        filename: fallbackFilename,
+        contentType: "text/csv",
+        csv: "No data available for this dashboard\n",
       });
-    } else {
-      csvContent = "No data available for this dashboard\n";
     }
 
-    const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `${dashboardTitle}_${timestamp}.csv`;
-
-    return {
-      csv: csvContent,
-      filename,
-      contentType: "text/csv",
-    };
+    return { files };
   } catch (error) {
     console.error("Error exporting dashboard data:", error);
 
@@ -134,9 +188,14 @@ exports.exportDashboardDataToCsv = async (dashboardId, userId) => {
     const filename = `dashboard_${safeName}_${timestamp}.csv`;
 
     return {
-      csv: "No data available for this dashboard\n",
-      filename,
-      contentType: "text/csv",
+      files: [
+        {
+          datasetId: null,
+          filename,
+          contentType: "text/csv",
+          csv: "No data available for this dashboard\n",
+        },
+      ],
     };
   }
 };
@@ -163,7 +222,7 @@ exports.exportDashboardDataViaQuery = async (dashboardId, userId) => {
     });
 
     // Get dashboard to find database connections
-    const dashboard = await supersetClient.getDashboard(dashboardInfo.supersetId);
+    const dashboard = await supersetClient.getDashboard(dashboardInfo.instanceId);
 
     // Get list of databases from Superset
     const databases = await supersetClient.listDatabases();

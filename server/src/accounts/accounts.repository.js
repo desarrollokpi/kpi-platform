@@ -1,18 +1,23 @@
 const { db } = require("../../database");
 const { eq, and, isNull, sql } = require("drizzle-orm");
 const { accounts, accountContract, users, instances, accountsInstances } = require("../db/schema");
+const { handleDbError } = require("../common/dbErrorMapper");
 
 exports.createAccount = async (accountData) => {
-  const result = await db.insert(accounts).values({
-    name: accountData.name,
-    subDomain: accountData.subDomain,
-    dataBase: accountData.dataBase || null,
-    keyUser: accountData.keyUser || null,
-    password: accountData.password || null,
-    logoAddress: accountData.logoAddress || null,
-    active: true,
-  });
-  return result[0];
+  try {
+    const result = await db.insert(accounts).values({
+      name: accountData.name,
+      subDomain: accountData.subDomain,
+      dataBase: accountData.dataBase || null,
+      keyUser: accountData.keyUser || null,
+      password: accountData.password || null,
+      logoAddress: accountData.logoAddress || null,
+      active: true,
+    });
+    return result[0];
+  } catch (error) {
+    handleDbError(error, "Failed to create account");
+  }
 };
 
 exports.findById = async (id) => {
@@ -73,9 +78,9 @@ exports.getStatistics = async (id) => {
       COUNT(DISTINCT ai.instancesId) AS intanceCount,
       COUNT(DISTINCT aiw.idWorkspaces) AS workspaceCount
     FROM accounts a
-    LEFT JOIN users u ON a.id = u.accountsId AND u.deletedAt IS NULL
-    LEFT JOIN accountsInstances ai ON a.id = ai.accountsId AND ai.active = 1 AND ai.deletedAt IS NULL
-    LEFT JOIN accountsInstancesWorkspaces aiw ON ai.id = aiw.idAccountsInstances AND aiw.active = 1 AND aiw.deletedAt IS NULL
+    LEFT JOIN users u ON a.id = u.accountId AND u.deletedAt IS NULL
+    LEFT JOIN accountsInstances ai ON a.id = ai.accountId AND ai.active = 1 AND ai.deletedAt IS NULL
+    LEFT JOIN accountsInstancesWorkspaces aiw ON ai.id = aiw.accountInstanceId AND aiw.active = 1 AND aiw.deletedAt IS NULL
     WHERE a.id = ${id} AND a.deletedAt IS NULL
     GROUP BY a.id
     LIMIT 1
@@ -118,7 +123,7 @@ exports.findByIdWithInstances = async (id) => {
         END
       ) AS instances
     FROM accounts a
-    LEFT JOIN accountsInstances ai ON a.id = ai.accountsId AND ai.deletedAt IS NULL
+    LEFT JOIN accountsInstances ai ON a.id = ai.accountId AND ai.deletedAt IS NULL
     LEFT JOIN instances i ON ai.instancesId = i.id AND i.deletedAt IS NULL
     WHERE a.id = ${id} AND a.deletedAt IS NULL
     GROUP BY a.id
@@ -170,10 +175,10 @@ exports.findByIdWithWorkspaces = async (id) => {
         END
       ) AS workspaces
     FROM accounts a
-    LEFT JOIN accountsInstances ai ON a.id = ai.accountsId AND ai.deletedAt IS NULL
-    LEFT JOIN accountsInstancesWorkspaces aiw ON ai.id = aiw.idAccountsInstances AND aiw.deletedAt IS NULL
-    LEFT JOIN workspaces w ON aiw.idWorkspaces = w.id AND w.deletedAt IS NULL
-    LEFT JOIN instances i ON ai.instancesId = i.id
+    LEFT JOIN accountsInstances ai ON a.id = ai.accountId AND ai.deletedAt IS NULL
+    LEFT JOIN accountsInstancesWorkspaces aiw ON ai.id = aiw.accountInstanceId AND aiw.deletedAt IS NULL
+    LEFT JOIN workspaces w ON aiw.workspaceId = w.id AND w.deletedAt IS NULL
+    LEFT JOIN instances i ON ai.instanceId = i.id
     WHERE a.id = ${id} AND a.deletedAt IS NULL
     GROUP BY a.id
     LIMIT 1
@@ -205,26 +210,46 @@ exports.findByIdWithWorkspaces = async (id) => {
 };
 
 exports.updateAccount = async (id, data) => {
-  return await db
-    .update(accounts)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(accounts.id, id));
+  try {
+    return await db
+      .update(accounts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(accounts.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to update account");
+  }
 };
 
 exports.updateLogo = async (id, logoAddress) => {
-  return await db.update(accounts).set({ logoAddress, updatedAt: new Date() }).where(eq(accounts.id, id));
+  try {
+    return await db.update(accounts).set({ logoAddress, updatedAt: new Date() }).where(eq(accounts.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to update account logo");
+  }
 };
 
 exports.softDelete = async (id) => {
-  return await db.update(accounts).set({ active: false, deletedAt: new Date() }).where(eq(accounts.id, id));
+  try {
+    return await db.update(accounts).set({ active: false, deletedAt: new Date() }).where(eq(accounts.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate account");
+  }
 };
 
 exports.activate = async (id) => {
-  return await db.update(accounts).set({ active: true, updatedAt: new Date() }).where(eq(accounts.id, id));
+  try {
+    return await db.update(accounts).set({ active: true, updatedAt: new Date() }).where(eq(accounts.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to activate account");
+  }
 };
 
 exports.deactivate = async (id) => {
-  return await db.update(accounts).set({ active: false, updatedAt: new Date() }).where(eq(accounts.id, id));
+  try {
+    return await db.update(accounts).set({ active: false, updatedAt: new Date() }).where(eq(accounts.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate account");
+  }
 };
 
 exports.subdomainExists = async (subDomain, excludeId = null) => {
@@ -278,31 +303,43 @@ exports.count = async (activeOnly = false) => {
 };
 
 exports.assignIntance = async (accountId, intanceId) => {
-  const result = await db.insert(accountsInstances).values({
-    accountsId: accountId,
-    instancesId: intanceId,
-    active: true,
-  });
-  return result[0];
+  try {
+    const result = await db.insert(accountsInstances).values({
+      accountId,
+      instanceId: intanceId,
+      active: true,
+    });
+    return result[0];
+  } catch (error) {
+    handleDbError(error, "Failed to assign instance to account");
+  }
 };
 
 exports.removeIntance = async (accountId, intanceId) => {
-  return await db
-    .update(accountsInstances)
-    .set({ active: false, deletedAt: new Date() })
-    .where(and(eq(accountsInstances.accountsId, accountId), eq(accountsInstances.instancesId, intanceId)));
+  try {
+    return await db
+      .update(accountsInstances)
+      .set({ active: false, deletedAt: new Date() })
+      .where(and(eq(accountsInstances.accountId, accountId), eq(accountsInstances.instanceId, intanceId)));
+  } catch (error) {
+    handleDbError(error, "Failed to remove instance from account");
+  }
 };
 
 exports.getContracts = async (accountId) => {
   return await db
     .select()
     .from(accountContract)
-    .where(and(eq(accountContract.idAccounts, accountId), isNull(accountContract.deletedAt)));
+    .where(and(eq(accountContract.accountId, accountId), isNull(accountContract.deletedAt)));
 };
 
 exports.createContract = async (contractData) => {
-  const result = await db.insert(accountContract).values(contractData);
-  return result[0];
+  try {
+    const result = await db.insert(accountContract).values(contractData);
+    return result[0];
+  } catch (error) {
+    handleDbError(error, "Failed to create account contract");
+  }
 };
 
 module.exports = exports;

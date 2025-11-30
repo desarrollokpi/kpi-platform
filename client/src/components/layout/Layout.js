@@ -6,7 +6,6 @@ import { ToastContainer } from "react-toastify";
 import AppBar from "./AppBar";
 import Navigation from "./Navigation";
 import roles from "./../../constants/roles";
-import useSessionTimeAvailable from "../../hooks/useSessionTimeAvailable";
 
 const Layout = ({ children }) => {
   const { user } = useSelector((state) => state.auth, shallowEqual);
@@ -18,8 +17,6 @@ const Layout = ({ children }) => {
 
     return userRoles.includes(roles.ADMIN) || userRoles.includes(roles.ROOT);
   }, [user]);
-
-  useSessionTimeAvailable();
 
   return (
     <>

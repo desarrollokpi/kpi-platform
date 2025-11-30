@@ -40,10 +40,10 @@ exports.getWorkspaceById = async (req, res, next) => {
 
     // Check if user is tenant admin trying to access workspace from another account
     const isRootAdmin = await rolesRepository.userHasRole(userId, ROLE_NAMES.ROOT_ADMIN);
-    if (!isRootAdmin && requestingUser.accountsId) {
+    if (!isRootAdmin && requestingUser.accountId) {
       // Verify workspace belongs to user's account
       const workspaceAccountIds = await workspacesRepository.getWorkspaceAccountIds(parseInt(id));
-      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountsId);
+      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountId);
 
       if (!belongsToUserAccount) {
         return res.status(403).json({
@@ -60,9 +60,11 @@ exports.getWorkspaceById = async (req, res, next) => {
 
 exports.getAllWorkspaces = async (req, res, next) => {
   try {
-    const { active, limit, offset, listed = "false", accountId } = req.query;
+    const { active, limit, offset, listed = "false", mode, accountId } = req.query;
 
-    if (listed === "true") {
+    const isSelectMode = mode === "select" || listed === "true";
+
+    if (isSelectMode) {
       const list = await workspacesServices.getWorkspacesForSelect({ accountId });
       return res.json(list);
     }
@@ -108,10 +110,10 @@ exports.updateWorkspace = async (req, res, next) => {
 
     // Check if user is tenant admin trying to access workspace from another account
     const isRootAdmin = await rolesRepository.userHasRole(userId, ROLE_NAMES.ROOT_ADMIN);
-    if (!isRootAdmin && requestingUser.accountsId) {
+    if (!isRootAdmin && requestingUser.accountId) {
       // Verify workspace belongs to user's account
       const workspaceAccountIds = await workspacesRepository.getWorkspaceAccountIds(parseInt(id));
-      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountsId);
+      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountId);
 
       if (!belongsToUserAccount) {
         return res.status(403).json({
@@ -153,10 +155,10 @@ exports.deleteWorkspace = async (req, res, next) => {
 
     // Check if user is tenant admin trying to access workspace from another account
     const isRootAdmin = await rolesRepository.userHasRole(userId, ROLE_NAMES.ROOT_ADMIN);
-    if (!isRootAdmin && requestingUser.accountsId) {
+    if (!isRootAdmin && requestingUser.accountId) {
       // Verify workspace belongs to user's account
       const workspaceAccountIds = await workspacesRepository.getWorkspaceAccountIds(parseInt(id));
-      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountsId);
+      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountId);
 
       if (!belongsToUserAccount) {
         return res.status(403).json({
@@ -193,10 +195,10 @@ exports.activateWorkspace = async (req, res, next) => {
 
     // Check if user is tenant admin trying to access workspace from another account
     const isRootAdmin = await rolesRepository.userHasRole(userId, ROLE_NAMES.ROOT_ADMIN);
-    if (!isRootAdmin && requestingUser.accountsId) {
+    if (!isRootAdmin && requestingUser.accountId) {
       // Verify workspace belongs to user's account
       const workspaceAccountIds = await workspacesRepository.getWorkspaceAccountIds(parseInt(id));
-      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountsId);
+      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountId);
 
       if (!belongsToUserAccount) {
         return res.status(403).json({
@@ -209,6 +211,44 @@ exports.activateWorkspace = async (req, res, next) => {
 
     res.json({
       message: "Workspace activado exitosamente",
+      workspace,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deactivateWorkspace = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const usersRepository = require("../users/users.repository");
+    const rolesRepository = require("../roles/roles.repository");
+    const workspacesRepository = require("./workspaces.repository");
+    const { ROLE_NAMES } = require("../constants/roles");
+
+    const requestingUser = await usersRepository.findById(userId);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const isRootAdmin = await rolesRepository.userHasRole(userId, ROLE_NAMES.ROOT_ADMIN);
+    if (!isRootAdmin && requestingUser.accountId) {
+      const workspaceAccountIds = await workspacesRepository.getWorkspaceAccountIds(parseInt(id));
+      const belongsToUserAccount = workspaceAccountIds.some((accId) => accId === requestingUser.accountId);
+
+      if (!belongsToUserAccount) {
+        return res.status(403).json({
+          error: "No tienes permisos para desactivar este workspace",
+        });
+      }
+    }
+
+    const workspace = await workspacesServices.deactivateWorkspace(parseInt(id));
+
+    res.json({
+      message: "Workspace desactivado exitosamente",
       workspace,
     });
   } catch (error) {
@@ -257,13 +297,13 @@ exports.getWorkspacesByUser = async (req, res, next) => {
     }
 
     // If user is TENANT_ADMIN, verify the target user belongs to their account
-    if (!isRootAdmin && isTenantAdmin && requestingUser.accountsId) {
+    if (!isRootAdmin && isTenantAdmin && requestingUser.accountId) {
       const targetUser = await usersRepository.findById(parseInt(userId));
       if (!targetUser) {
         return res.status(404).json({ error: "Usuario objetivo no encontrado" });
       }
 
-      if (targetUser.accountsId !== requestingUser.accountsId) {
+      if (targetUser.accountId !== requestingUser.accountId) {
         return res.status(403).json({
           error: "No tienes permisos para ver los workspaces de un usuario de otra cuenta",
         });

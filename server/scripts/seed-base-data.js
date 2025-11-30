@@ -8,7 +8,7 @@
  * - superset_instances → instances
  * - username → user_name
  * - email → mail
- * - accountId → accountsId (nullable)
+ * - accountId → account_id (nullable)
  *
  * Usage:
  *   SEED_ENV=./config/.env.dev node scripts/seed-base-data.js
@@ -23,7 +23,6 @@ const {
   checkConnection,
   verifyRoles,
   ensureRole,
-  ensureIntance,
   ensureUser,
   assignRoleToUser,
 } = require("./seed-utils");
@@ -33,33 +32,12 @@ const ROOT_EMAIL = process.env.SEED_ROOT_EMAIL || "root.admin@kpimanagers.com";
 const ROOT_PASSWORD = process.env.SEED_ROOT_PASSWORD || "RootAdmin#2025";
 const ROOT_NAME = process.env.SEED_ROOT_NAME || "Root Administrator";
 
-const SUPERSET_URL = process.env.SEED_SUPERSET_URL || "https://superset.local";
-const SUPERSET_API_USER = process.env.SEED_SUPERSET_API_USER || "service_bot";
-const SUPERSET_API_PASSWORD = process.env.SEED_SUPERSET_API_PASSWORD || "superset-secret";
-
 async function seedRoles() {
   console.log("➤ Ensuring default roles exist...");
   await ensureRole(ROLE_NAMES.ROOT_ADMIN);
   await ensureRole(ROLE_NAMES.TENANT_ADMIN);
   await ensureRole(ROLE_NAMES.USER);
   console.log("  ✓ Roles ready");
-}
-
-async function seedIntance() {
-  console.log("➤ Creating Superset instance (instances)...");
-
-  logger.info(`Using Superset URL: ${SUPERSET_URL}`);
-
-  const intanceId = await ensureIntance({
-    name: "Primary Superset",
-    baseUrl: SUPERSET_URL,
-    apiUserName: SUPERSET_API_USER,
-    apiPassword: SUPERSET_API_PASSWORD,
-    active: true,
-  });
-
-  logger.success(`Superset instance ready (id: ${intanceId})`);
-  return intanceId;
 }
 
 async function seedRootAdmin() {
@@ -71,7 +49,7 @@ async function seedRootAdmin() {
     name: ROOT_NAME,
     mail: ROOT_EMAIL,
     password: passwordHash,
-    accountsId: null, // Root admin no pertenece a ningún tenant
+    accountId: null, // Root admin no pertenece a ningún tenant
     active: true,
   });
 
@@ -103,20 +81,19 @@ async function main() {
       process.exit(1);
     }
 
-    await seedIntance();
     const rootUserId = await seedRootAdmin();
 
     console.log("\n╔══════════════════════════════════════════════╗");
     console.log("║             SEED COMPLETED ✓                 ║");
     console.log("╚══════════════════════════════════════════════╝\n");
 
-    console.log("Root Admin Credentials:");
+    console.log("Root Admin credentials (login with email only):");
     console.log("┌────────────────────────────────────────────┐");
-    console.log(`│ Username: ${ROOT_USERNAME.padEnd(34)}│`);
-    console.log(`│ Name:     ${ROOT_NAME.padEnd(34)}│`);
-    console.log(`│ Email:    ${ROOT_EMAIL.padEnd(34)}│`);
-    console.log(`│ Password: ${ROOT_PASSWORD.padEnd(34)}│`);
-    console.log(`│ User ID:  ${String(rootUserId).padEnd(34)}│`);
+    console.log(`│ Email (login): ${ROOT_EMAIL.padEnd(27)}│`);
+    console.log(`│ Password:      ${ROOT_PASSWORD.padEnd(27)}│`);
+    console.log(`│ Name:          ${ROOT_NAME.padEnd(27)}│`);
+    console.log(`│ Username:      ${ROOT_USERNAME.padEnd(27)}│`);
+    console.log(`│ User ID:       ${String(rootUserId).padEnd(27)}│`);
     console.log("└────────────────────────────────────────────┘\n");
 
     console.log("Next Steps:");

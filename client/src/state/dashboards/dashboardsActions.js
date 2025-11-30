@@ -1,3 +1,4 @@
+import { clearMessage, handleError, setLoading } from "../common/utils";
 import {
   ERROR,
   LOADING,
@@ -21,17 +22,11 @@ import {
 } from "./dashboardsTypes";
 import axios from "axios";
 
-const extractErrorMessage = (error) => error?.response?.data?.message || error?.message || "Unexpected error";
-
-const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
-
-export const clearMessage = () => (dispatch) => dispatch({ type: CLEAR_MESSAGE });
-
 // Get all dashboards with optional filters
 export const getAllDashboards =
   (filters = {}) =>
   async (dispatch) => {
-    setLoading(dispatch, true);
+    setLoading(dispatch, true, LOADING);
     try {
       const { data } = await axios.get(`/dashboards`, { params: filters });
       dispatch({
@@ -39,18 +34,16 @@ export const getAllDashboards =
         payload: data,
       });
     } catch (error) {
-      dispatch({
-        type: ERROR,
-        payload: extractErrorMessage(error),
-      });
+      handleError(dispatch, ERROR, error);
     } finally {
-      setLoading(dispatch, false);
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
     }
   };
 
 // Get dashboard by ID
 export const getDashboardById = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/${dashboardId}`);
     dispatch({
@@ -58,59 +51,54 @@ export const getDashboardById = (dashboardId) => async (dispatch) => {
       payload: data.dashboard,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Create dashboard
 export const createDashboard = (dashboardData) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/dashboards`, dashboardData);
     dispatch({
       type: CREATE_DASHBOARD,
       payload: data.dashboard,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Update dashboard
-export const updateDashboard = (dashboardData) => async (dispatch) => {
-  setLoading(dispatch, true);
+export const updateDashboard = (id, dashboardData) => async (dispatch) => {
+  setLoading(dispatch, true, LOADING);
   try {
-    // apacheId is only used on creation to resolve superset instance + Superset dashboard id.
-    // Updates do not change the underlying Superset dashboard association, so we drop apacheId here.
-    const { id, apacheId, ...updateData } = dashboardData;
-    const { data } = await axios.put(`/dashboards/${id}`, updateData);
+    const { data } = await axios.put(`/dashboards/${id}`, dashboardData);
     dispatch({
       type: UPDATE_DASHBOARD,
       payload: data.dashboard,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Delete dashboard (soft delete)
 export const deleteDashboard = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/dashboards/${dashboardId}`);
     dispatch({
@@ -118,18 +106,16 @@ export const deleteDashboard = (dashboardId) => async (dispatch) => {
       payload: { dashboardId, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Activate dashboard
 export const activateDashboard = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/dashboards/${dashboardId}/activate`);
     dispatch({
@@ -137,18 +123,16 @@ export const activateDashboard = (dashboardId) => async (dispatch) => {
       payload: data.dashboard,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Deactivate dashboard
 export const deactivateDashboard = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/dashboards/${dashboardId}/deactivate`);
     dispatch({
@@ -156,18 +140,16 @@ export const deactivateDashboard = (dashboardId) => async (dispatch) => {
       payload: data.dashboard,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Get dashboards by user
 export const getDashboardsByUser = (userId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/user/${userId}`);
     dispatch({
@@ -175,17 +157,15 @@ export const getDashboardsByUser = (userId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const getDashboardsAssignableForUser = (userId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/assignableForUser/${userId}`);
     dispatch({
@@ -193,18 +173,16 @@ export const getDashboardsAssignableForUser = (userId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Get dashboard embed info
 export const getDashboardEmbedInfo = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/${dashboardId}/embedInfo`);
     dispatch({
@@ -212,18 +190,16 @@ export const getDashboardEmbedInfo = (dashboardId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Get users assigned to dashboard
 export const getDashboardUsers = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/${dashboardId}/users`);
     dispatch({
@@ -231,18 +207,16 @@ export const getDashboardUsers = (dashboardId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Assign dashboard to user
 export const assignDashboardToUser = (dashboardId, userId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/dashboards/${dashboardId}/assignUser`, { userId });
     dispatch({
@@ -250,18 +224,16 @@ export const assignDashboardToUser = (dashboardId, userId) => async (dispatch) =
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Remove dashboard from user
 export const removeDashboardFromUser = (dashboardId, userId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/dashboards/${dashboardId}/removeUser/${userId}`);
     dispatch({
@@ -269,44 +241,45 @@ export const removeDashboardFromUser = (dashboardId, userId) => async (dispatch)
       payload: { dashboardId, userId, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Export dashboard data to CSV
 export const exportDashboardCsv = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
-    const { data } = await axios.get(`/dashboards/${dashboardId}/exportCsv`, {
-      responseType: "blob",
-    });
+    const { data } = await axios.get(`/dashboards/${dashboardId}/exportCsv`);
 
-    // Create download link
-    const url = window.URL.createObjectURL(new Blob([data]));
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `dashboard_${dashboardId}_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    const files = Array.isArray(data?.files) ? data.files : [];
+
+    files.forEach((file, index) => {
+      const csvContent = file.csv || "";
+      const filename = file.filename || `dashboard_${dashboardId}_dataset_${file.datasetId ?? index}_${Date.now()}.csv`;
+
+      const blob = new Blob([csvContent], { type: file.contentType || "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    });
 
     dispatch({
       type: EXPORT_DASHBOARD_CSV,
       payload: { success: true, message: "CSV descargado exitosamente" },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
@@ -314,7 +287,7 @@ export const exportDashboardCsv = (dashboardId) => async (dispatch) => {
 export const sendDashboardEmail =
   (dashboardId, emailData = {}) =>
   async (dispatch) => {
-    setLoading(dispatch, true);
+    setLoading(dispatch, true, LOADING);
     try {
       const { data } = await axios.post(`/dashboards/${dashboardId}/sendEmail`, emailData);
       dispatch({
@@ -322,18 +295,16 @@ export const sendDashboardEmail =
         payload: { success: true, message: data.message || "Email enviado exitosamente" },
       });
     } catch (error) {
-      dispatch({
-        type: ERROR,
-        payload: extractErrorMessage(error),
-      });
+      handleError(dispatch, ERROR, error);
     } finally {
-      setLoading(dispatch, false);
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
     }
   };
 
 // Get dashboard embedded config (guest token + config for embedding)
 export const getDashboardEmbeddedConfig = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/${dashboardId}/embeddedConfig`);
     dispatch({
@@ -342,41 +313,39 @@ export const getDashboardEmbeddedConfig = (dashboardId) => async (dispatch) => {
     });
     return data;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+
     throw error; // Re-throw for component error handling
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const getReportsLists =
   ({ accountId }) =>
   async (dispatch) => {
-    setLoading(dispatch, true);
+    setLoading(dispatch, true, LOADING);
     try {
-      const { data } = await axios.get(`/reports`, { params: { listed: true, accountId } });
+      const { data } = await axios.get(`/reports`, { params: { mode: "select", accountId } });
       dispatch({
         type: GET_REPORTS_LISTS,
         payload: data,
       });
     } catch (error) {
-      dispatch({
-        type: ERROR,
-        payload: extractErrorMessage(error),
-      });
+      handleError(dispatch, ERROR, error);
+
       throw error; // Re-throw for component error handling
     } finally {
-      setLoading(dispatch, false);
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
     }
   };
 
 export const getDashboardsInstancesLists =
   ({ reportId }) =>
   async (dispatch) => {
-    setLoading(dispatch, true);
+    setLoading(dispatch, true, LOADING);
 
     try {
       const { data } = await axios.get(`/dashboards/instancesForSelect`, { params: { reportId } });
@@ -385,12 +354,11 @@ export const getDashboardsInstancesLists =
         payload: data,
       });
     } catch (error) {
-      dispatch({
-        type: ERROR,
-        payload: extractErrorMessage(error),
-      });
+      handleError(dispatch, ERROR, error);
+
       throw error; // Re-throw for component error handling
     } finally {
-      setLoading(dispatch, false);
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
     }
   };

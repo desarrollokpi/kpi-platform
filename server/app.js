@@ -1,10 +1,10 @@
 const express = require("express");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const cors = require("cors");
 const monitor = require("./logger");
-const cors = require("./cors");
 
-process.title = "server";
+process.title = "KPI_API_SERVER";
 
 require("dotenv").config();
 
@@ -17,8 +17,15 @@ const app = express();
 
 // Middleware
 app.use(express.json({ extended: false }));
+// CORS configured to reflect Origin so it works for localhost and production
+// while still allowing credentials (cookies).
+app.use(
+  cors({
+    origin: true, // reflect request origin
+    credentials: true,
+  })
+);
 app.use(monitor);
-app.use(cors);
 app.use(cookieParser());
 
 const routes = ["auth", "accounts", "users", "roles", "instances", "workspaces", "reports", "dashboards"];

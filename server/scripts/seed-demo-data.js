@@ -80,14 +80,14 @@ const REPORTS_AND_DASHBOARDS = [
       {
         name: "Sales Performance Report",
         dashboards: [
-          { name: "Monthly Sales Dashboard", supersetId: 101, embeddedId: "uuid-sales-monthly" },
-          { name: "Quarterly Sales Dashboard", supersetId: 102, embeddedId: "uuid-sales-quarterly" },
+          { name: "Monthly Sales Dashboard", instanceId: 101, embeddedId: "uuid-sales-monthly" },
+          { name: "Quarterly Sales Dashboard", instanceId: 102, embeddedId: "uuid-sales-quarterly" },
         ],
       },
       {
         name: "Marketing Funnel Report",
         dashboards: [
-          { name: "Marketing Overview Dashboard", supersetId: 103, embeddedId: "uuid-marketing-overview" },
+          { name: "Marketing Overview Dashboard", instanceId: 103, embeddedId: "uuid-marketing-overview" },
         ],
       },
     ],
@@ -98,8 +98,8 @@ const REPORTS_AND_DASHBOARDS = [
       {
         name: "Operations KPI Report",
         dashboards: [
-          { name: "Operations KPI Board", supersetId: 201, embeddedId: "uuid-ops-kpi" },
-          { name: "Logistics Tracking Dashboard", supersetId: 202, embeddedId: "uuid-logistics" },
+          { name: "Operations KPI Board", instanceId: 201, embeddedId: "uuid-ops-kpi" },
+          { name: "Logistics Tracking Dashboard", instanceId: 202, embeddedId: "uuid-logistics" },
         ],
       },
     ],
@@ -110,7 +110,7 @@ const REPORTS_AND_DASHBOARDS = [
       {
         name: "Financial Summary Report",
         dashboards: [
-          { name: "Financial Overview Dashboard", supersetId: 301, embeddedId: "uuid-finance-overview" },
+          { name: "Financial Overview Dashboard", instanceId: 301, embeddedId: "uuid-finance-overview" },
         ],
       },
     ],
@@ -245,7 +245,7 @@ async function createTenantUsers(accountId, tenantDef, dashboardsMap) {
       name: userDef.name,
       mail: userDef.mail,
       password: passwordHash,
-      accountsId: accountId,
+      accountId: accountId,
       active: true,
     });
 
@@ -305,7 +305,7 @@ async function seedAccounts(instancesMap) {
       // Create reports and dashboards for this tenant+workspace
       for (const reportDef of workspaceTemplate.reports) {
         const reportId = await ensureReport({
-          workspacesId: workspaceId,
+          workspaceId: workspaceId,
           name: `${tenant.name} - ${reportDef.name}`,
           active: true,
         });
@@ -313,7 +313,7 @@ async function seedAccounts(instancesMap) {
         for (const dashboardDef of reportDef.dashboards) {
           const dashboardId = await ensureDashboard({
             reportId,
-            supersetId: dashboardDef.supersetId,
+            instanceId: dashboardDef.instanceId,
             embeddedId: dashboardDef.embeddedId,
             name: `${tenant.name} - ${dashboardDef.name}`,
             active: true,
@@ -359,19 +359,39 @@ async function main() {
     console.log("║           DEMO SEED COMPLETED ✓              ║");
     console.log("╚══════════════════════════════════════════════╝\n");
 
-    console.log("Tenant Admin credentials:");
-    console.log("┌────────────────────────────────────────────┐");
-    console.log("│ acme.admin / " + TENANT_ADMIN_PASSWORD.padEnd(28) + "│");
-    console.log("│ globex.admin / " + TENANT_ADMIN_PASSWORD.padEnd(26) + "│");
-    console.log("│ testclient.admin / " + TENANT_ADMIN_PASSWORD.padEnd(22) + "│");
-    console.log("└────────────────────────────────────────────┘\n");
+    console.log("Tenant admin credentials (login with email only):");
+    console.log("┌───────────────────────────────────────────────────────────────────────────────┐");
+    console.log("│ Tenant / Subdomain          | Email (login)                 | Password       │");
+    console.log("├───────────────────────────────────────────────────────────────────────────────┤");
+    TENANT_DEFINITIONS.forEach((tenant) => {
+      tenant.users
+        .filter((u) => u.role === ROLE_NAMES.TENANT_ADMIN)
+        .forEach((u) => {
+          const tenantLabel = `${tenant.name} (${tenant.subDomain})`;
+          const emailLabel = u.mail;
+          const passwordLabel = u.password;
+          const line = `${tenantLabel.padEnd(26)}| ${emailLabel.padEnd(27)}| ${passwordLabel.padEnd(14)}`;
+          console.log(`│ ${line} │`);
+        });
+    });
+    console.log("└───────────────────────────────────────────────────────────────────────────────┘\n");
 
-    console.log("Tenant user credentials:");
-    console.log("┌────────────────────────────────────────────┐");
-    console.log("│ acme.user / " + USER_PASSWORD.padEnd(30) + "│");
-    console.log("│ globex.user / " + USER_PASSWORD.padEnd(28) + "│");
-    console.log("│ testclient.user / " + USER_PASSWORD.padEnd(24) + "│");
-    console.log("└────────────────────────────────────────────┘\n");
+    console.log("Tenant user credentials (login with email only):");
+    console.log("┌───────────────────────────────────────────────────────────────────────────────┐");
+    console.log("│ Tenant / Subdomain          | Email (login)                 | Password       │");
+    console.log("├───────────────────────────────────────────────────────────────────────────────┤");
+    TENANT_DEFINITIONS.forEach((tenant) => {
+      tenant.users
+        .filter((u) => u.role === ROLE_NAMES.USER)
+        .forEach((u) => {
+          const tenantLabel = `${tenant.name} (${tenant.subDomain})`;
+          const emailLabel = u.mail;
+          const passwordLabel = u.password;
+          const line = `${tenantLabel.padEnd(26)}| ${emailLabel.padEnd(27)}| ${passwordLabel.padEnd(14)}`;
+          console.log(`│ ${line} │`);
+        });
+    });
+    console.log("└───────────────────────────────────────────────────────────────────────────────┘\n");
 
     console.log("Demo data structure:");
     console.log("  • 2 Superset instances (instances)");

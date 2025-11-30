@@ -1,3 +1,4 @@
+import { clearMessage, handleError, setLoading } from "../common/utils";
 import {
   ERROR,
   LOADING,
@@ -10,16 +11,9 @@ import {
 } from "./usersDashboardsTypes";
 import axios from "axios";
 
-const extractErrorMessage = (error) =>
-  error?.response?.data?.message || error?.message || "Unexpected error";
-
-const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
-
-export const clearMessage = () => (dispatch) => dispatch({ type: CLEAR_MESSAGE });
-
 // Get dashboards assigned to a specific user
 export const getUserDashboards = (userId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/user/${userId}`);
     dispatch({
@@ -27,18 +21,16 @@ export const getUserDashboards = (userId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Get users assigned to a specific dashboard
 export const getDashboardUsers = (dashboardId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/dashboards/${dashboardId}/users`);
     dispatch({
@@ -46,18 +38,16 @@ export const getDashboardUsers = (dashboardId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Assign a dashboard to a user
 export const assignDashboardToUser = (dashboardId, userId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/dashboards/${dashboardId}/assignUser`, { userId });
     dispatch({
@@ -65,18 +55,16 @@ export const assignDashboardToUser = (dashboardId, userId) => async (dispatch) =
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Remove a dashboard from a user
 export const removeDashboardFromUser = (dashboardId, userId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/dashboards/${dashboardId}/removeUser/${userId}`);
     dispatch({
@@ -84,18 +72,16 @@ export const removeDashboardFromUser = (dashboardId, userId) => async (dispatch)
       payload: { dashboardId, userId, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Bulk assign multiple dashboards to a user
 export const bulkAssignDashboards = (userId, dashboardIds) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/users/${userId}/assignDashboards`, { dashboardIds });
     dispatch({
@@ -103,11 +89,9 @@ export const bulkAssignDashboards = (userId, dashboardIds) => async (dispatch) =
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };

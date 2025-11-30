@@ -1,24 +1,35 @@
 const { db } = require("../../database");
 const { eq, and, isNull, ne } = require("drizzle-orm");
 const { users, roles, usersRoles } = require("../db/schema");
+const { handleDbError } = require("../common/dbErrorMapper");
 
 exports.createUser = async (userData) => {
-  const result = await db.insert(users).values({
-    accountsId: userData.accountId ?? null,
-    userName: userData.username,
-    name: userData.name ?? null,
-    mail: userData.mail,
-    password: userData.password,
-    active: userData.active !== undefined ? userData.active : true,
-  });
-  return result[0];
+  try {
+    const values = {
+      userName: userData.userName ?? userData.username,
+      name: userData.name ?? null,
+      mail: userData.mail,
+      password: userData.password,
+      active: userData.active !== undefined ? userData.active : true,
+    };
+
+    // accountId is optional (for root admin users it should be null)
+    if (Object.prototype.hasOwnProperty.call(userData, "accountId")) {
+      values.accountId = userData.accountId;
+    }
+
+    const [result] = await db.insert(users).values(values);
+    return result;
+  } catch (error) {
+    handleDbError(error, "Failed to create user");
+  }
 };
 
 exports.findById = async (id) => {
   const result = await db
     .select({
       id: users.id,
-      accountsId: users.accountsId,
+      accountId: users.accountId,
       userName: users.userName,
       name: users.name,
       mail: users.mail,
@@ -37,7 +48,7 @@ exports.findByIdWithRoles = async (id) => {
   const usersResult = await db
     .select({
       id: users.id,
-      accountsId: users.accountsId,
+      accountId: users.accountId,
       userName: users.userName,
       name: users.name,
       mail: users.mail,
@@ -61,15 +72,10 @@ exports.findByIdWithRoles = async (id) => {
       name: roles.name,
     })
     .from(usersRoles)
-    .innerJoin(
-      roles,
-      and(eq(usersRoles.rolesId, roles.id), isNull(roles.deletedAt))
-    )
-    .where(and(eq(usersRoles.usersId, id), isNull(usersRoles.deletedAt)));
+    .innerJoin(roles, and(eq(usersRoles.roleId, roles.id), isNull(roles.deletedAt)))
+    .where(and(eq(usersRoles.userId, id), isNull(usersRoles.deletedAt)));
 
-  const rolesList = rolesResult
-    .filter((row) => row.id !== null)
-    .map((row) => ({ id: row.id, name: row.name }));
+  const rolesList = rolesResult.filter((row) => row.id !== null).map((row) => ({ id: row.id, name: row.name }));
 
   return {
     ...user,
@@ -96,7 +102,7 @@ exports.findByUsername = async (username) => {
 };
 
 exports.findAll = async (options = {}) => {
-  const { active, accountsId, limit, offset } = options;
+  const { active, accountId, limit, offset } = options;
 
   let conditions = [isNull(users.deletedAt)];
 
@@ -104,14 +110,14 @@ exports.findAll = async (options = {}) => {
     conditions.push(eq(users.active, active));
   }
 
-  if (accountsId !== undefined) {
-    conditions.push(eq(users.accountsId, accountsId));
+  if (accountId !== undefined) {
+    conditions.push(eq(users.accountId, accountId));
   }
 
   let query = db
     .select({
       id: users.id,
-      accountsId: users.accountsId,
+      accountId: users.accountId,
       userName: users.userName,
       name: users.name,
       mail: users.mail,
@@ -133,15 +139,15 @@ exports.findAll = async (options = {}) => {
   return await query;
 };
 
-exports.count = async (activeOnly = false, accountsId = null) => {
+exports.count = async (activeOnly = false, accountId = null) => {
   const conditions = [isNull(users.deletedAt)];
 
   if (activeOnly) {
     conditions.push(eq(users.active, true));
   }
 
-  if (accountsId !== null) {
-    conditions.push(eq(users.accountsId, accountsId));
+  if (accountId !== null) {
+    conditions.push(eq(users.accountId, accountId));
   }
 
   const result = await db
@@ -156,7 +162,7 @@ exports.findByAccountId = async (accountId) => {
   return await db
     .select({
       id: users.id,
-      accountsId: users.accountsId,
+      accountId: users.accountId,
       userName: users.userName,
       name: users.name,
       mail: users.mail,
@@ -165,36 +171,77 @@ exports.findByAccountId = async (accountId) => {
       updatedAt: users.updatedAt,
     })
     .from(users)
-    .where(and(eq(users.accountsId, accountId), isNull(users.deletedAt)));
+    .where(and(eq(users.accountId, accountId), isNull(users.deletedAt)));
+};
+
+exports.getForSelect = async ({ accountId = null, active = true } = {}) => {
+  const conditions = [isNull(users.deletedAt)];
+
+  if (active !== undefined) {
+    conditions.push(eq(users.active, active));
+  }
+
+  if (accountId !== null && accountId !== undefined) {
+    conditions.push(eq(users.accountId, accountId));
+  }
+
+  return await db
+    .select({
+      label: users.userName,
+      value: users.id,
+    })
+    .from(users)
+    .where(and(...conditions));
 };
 
 exports.updateUser = async (id, data) => {
   const updateData = {};
 
   if (data.username !== undefined) updateData.userName = data.username;
+  if (data.userName !== undefined) updateData.userName = data.userName;
   if (data.mail !== undefined) updateData.mail = data.mail;
   if (data.name !== undefined) updateData.name = data.name;
   if (data.active !== undefined) updateData.active = data.active;
 
   updateData.updatedAt = new Date();
 
-  return await db.update(users).set(updateData).where(eq(users.id, id));
+  try {
+    return await db.update(users).set(updateData).where(eq(users.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to update user");
+  }
 };
 
 exports.softDelete = async (id) => {
-  return await db.update(users).set({ active: false, deletedAt: new Date() }).where(eq(users.id, id));
+  try {
+    return await db.update(users).set({ active: false, deletedAt: new Date() }).where(eq(users.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate user");
+  }
 };
 
 exports.activate = async (id) => {
-  return await db.update(users).set({ active: true, updatedAt: new Date() }).where(eq(users.id, id));
+  try {
+    return await db.update(users).set({ active: true, updatedAt: new Date() }).where(eq(users.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to activate user");
+  }
 };
 
 exports.deactivate = async (id) => {
-  return await db.update(users).set({ active: false, updatedAt: new Date() }).where(eq(users.id, id));
+  try {
+    return await db.update(users).set({ active: false, updatedAt: new Date() }).where(eq(users.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to deactivate user");
+  }
 };
 
 exports.updatePassword = async (id, hashedPassword) => {
-  return await db.update(users).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(users.id, id));
+  try {
+    return await db.update(users).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(users.id, id));
+  } catch (error) {
+    handleDbError(error, "Failed to update user password");
+  }
 };
 
 exports.emailExists = async (email, excludeId = null) => {

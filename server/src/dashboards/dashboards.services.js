@@ -3,82 +3,7 @@ const instanceRepository = require("../instances/instances.repository");
 const reportsRepository = require("../reports/reports.repository");
 const permissionsService = require("../common/permissions.service");
 const { ValidationError, NotFoundError, ForbiddenError } = require("../common/exception");
-const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
-const { db } = require("../../database");
-const {
-  accountsInstances,
-  accountsInstancesWorkspaces,
-  instances,
-  usersDashboards,
-  users,
-  dashboards: dashboardsTable,
-  reports: reportsTable,
-  workspaces: workspacesTable,
-} = require("../db/schema");
-const { and, eq, isNull } = require("drizzle-orm");
-
-const queryDashboardsByAccount = async (accountId, options = {}) => {
-  const conditions = [isNull(dashboardsTable.deletedAt)];
-
-  if (options.active !== undefined) {
-    const activeValue = options.active === true || options.active === "true";
-    conditions.push(eq(dashboardsTable.active, activeValue));
-  }
-
-  if (options.reportId !== undefined) {
-    conditions.push(eq(dashboardsTable.reportId, options.reportId));
-  }
-
-  let query = db
-    .select({
-      id: dashboardsTable.id,
-      supersetId: dashboardsTable.supersetId,
-      embeddedId: dashboardsTable.embeddedId,
-      name: dashboardsTable.name,
-      reportId: dashboardsTable.reportId,
-      reportName: reportsTable.name,
-      active: dashboardsTable.active,
-      createdAt: dashboardsTable.createdAt,
-      updatedAt: dashboardsTable.updatedAt,
-    })
-    .from(dashboardsTable)
-    .innerJoin(
-      reportsTable,
-      and(eq(dashboardsTable.reportId, reportsTable.id), eq(reportsTable.active, true), isNull(reportsTable.deletedAt))
-    )
-    .innerJoin(
-      workspacesTable,
-      and(eq(reportsTable.workspacesId, workspacesTable.id), eq(workspacesTable.active, true), isNull(workspacesTable.deletedAt))
-    )
-    .innerJoin(
-      accountsInstancesWorkspaces,
-      and(
-        eq(accountsInstancesWorkspaces.idWorkspaces, workspacesTable.id),
-        eq(accountsInstancesWorkspaces.active, true),
-        isNull(accountsInstancesWorkspaces.deletedAt)
-      )
-    )
-    .innerJoin(
-      accountsInstances,
-      and(
-        eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
-        eq(accountsInstances.active, true),
-        isNull(accountsInstances.deletedAt),
-        eq(accountsInstances.accountsId, accountId)
-      )
-    )
-    .where(and(...conditions));
-
-  if (options.limit) {
-    query = query.limit(options.limit);
-  }
-
-  if (options.offset) {
-    query = query.offset(options.offset);
-  }
-
-  return await query;
-};
+const { createApacheSuperSetClient } = require("../integrations/apache-superset.service");
 
 exports.createDashboard = async (dashboardData) => {
   const { name, reportId, apacheId } = dashboardData;
@@ -94,27 +19,27 @@ exports.createDashboard = async (dashboardData) => {
     throw new NotFoundError("Report not found");
   }
 
-  const [supersetIdPart, apacheDashboardIdPart] = apacheId.split("-");
-  const supersetId = parseInt(supersetIdPart, 10);
+  const [instanceIdPart, apacheDashboardIdPart] = apacheId.split("-");
+  const instanceId = parseInt(instanceIdPart, 10);
   const supersetDashboardId = parseInt(apacheDashboardIdPart, 10);
 
-  if (Number.isNaN(supersetId) || Number.isNaN(supersetDashboardId)) {
+  if (Number.isNaN(instanceId) || Number.isNaN(supersetDashboardId)) {
     throw new ValidationError("apacheId must be in the format '<instanceId>-<dashboardId>'");
   }
 
-  const instance = await instanceRepository.findById(supersetId);
+  const instance = await instanceRepository.findById(instanceId);
   if (!instance) {
     throw new ValidationError(`This instances doenst exists`);
   }
 
   const client = createApacheSuperSetClient(instance);
-  const { uuid } = await client.enableEmbeddedDashboard(apacheDashboardId);
+  const { uuid } = await client.enableEmbeddedDashboard(supersetDashboardId);
 
   if (uuid) {
     // Create dashboard
 
     const result = await dashboardsRepository.createDashboard({
-      supersetId,
+      instanceId,
       supersetDashboardId,
       embeddedId: uuid,
       name,
@@ -134,11 +59,11 @@ exports.updateDashboard = async (id, updateData, userId) => {
     throw new NotFoundError("Dashboard not found");
   }
 
-  // Don't allow changing supersetId if it conflicts with another dashboard
-  if (updateData.supersetId && updateData.supersetId !== dashboard.supersetId) {
-    const existing = await dashboardsRepository.findBySupersetId(updateData.supersetId);
+  // Don't allow changing instanceId if it conflicts with another dashboard
+  if (updateData.instanceId && updateData.instanceId !== dashboard.instanceId) {
+    const existing = await dashboardsRepository.findBySupersetId(updateData.instanceId);
     if (existing && existing.id !== id) {
-      throw new ValidationError(`Dashboard with supersetId ${updateData.supersetId} already exists`);
+      throw new ValidationError(`Dashboard with instanceId ${updateData.instanceId} already exists`);
     }
   }
 
@@ -174,7 +99,7 @@ exports.getAllDashboards = async (options = {}, userId) => {
 
   // If accountId is provided, always filter dashboards by that tenant (used by tenant admins views)
   if (accountId !== undefined) {
-    return await queryDashboardsByAccount(accountId, options);
+    return await dashboardsRepository.findAllByAccount(accountId, options);
   }
 
   const isRootAdmin = await permissionsService.isRootAdmin(userId);
@@ -254,36 +179,9 @@ exports.getDashboardsInstancesForSelect = async ({ reportId }) => {
     throw new NotFoundError("Report not found");
   }
 
-  const workspaceId = report.workspacesId;
+  const workspaceId = report.workspaceId;
 
-  const rows = await db
-    .select({
-      instanceId: instances.id,
-      instanceName: instances.name,
-      baseUrl: instances.baseUrl,
-      apiUserName: instances.apiUserName,
-      apiPassword: instances.apiPassword,
-    })
-    .from(accountsInstancesWorkspaces)
-    .innerJoin(
-      accountsInstances,
-      and(
-        eq(accountsInstancesWorkspaces.idAccountsInstances, accountsInstances.id),
-        eq(accountsInstances.active, true),
-        isNull(accountsInstances.deletedAt)
-      )
-    )
-    .innerJoin(
-      instances,
-      and(eq(accountsInstances.instancesId, instances.id), eq(instances.active, true), isNull(instances.deletedAt))
-    )
-    .where(
-      and(
-        eq(accountsInstancesWorkspaces.idWorkspaces, workspaceId),
-        eq(accountsInstancesWorkspaces.active, true),
-        isNull(accountsInstancesWorkspaces.deletedAt)
-      )
-    );
+  const rows = await dashboardsRepository.findInstancesForWorkspace(workspaceId);
 
   // Deduplicate instances by id
   const instancesById = new Map();
@@ -294,6 +192,7 @@ exports.getDashboardsInstancesForSelect = async ({ reportId }) => {
   });
 
   const options = [];
+  let anySuccess = false;
 
   for (const row of instancesById.values()) {
     try {
@@ -319,10 +218,21 @@ exports.getDashboardsInstancesForSelect = async ({ reportId }) => {
           label: `${row.instanceName} - ${dashboardTitle}`,
         });
       });
+
+      if (supersetDashboards.length > 0) {
+        anySuccess = true;
+      }
     } catch (error) {
       // If one instance fails, log and continue with others
       console.error("Error listing dashboards for instance", row.instanceId, error.message);
     }
+  }
+
+  if (!anySuccess) {
+    throw new ValidationError(
+      "No fue posible conectarse a ninguna instancia de Superset para este workspace. " +
+        "Por favor revisa la URL de la instancia, el usuario y la contraseña configurados."
+    );
   }
 
   return options;
@@ -342,6 +252,28 @@ exports.softDeleteDashboard = async (id, userId) => {
   }
 
   await dashboardsRepository.softDelete(id);
+};
+
+exports.activateDashboard = async (id) => {
+  const dashboard = await dashboardsRepository.findById(id);
+  if (!dashboard) {
+    throw new NotFoundError("Dashboard not found");
+  }
+
+  await dashboardsRepository.activate(id);
+
+  return await dashboardsRepository.findById(id);
+};
+
+exports.deactivateDashboard = async (id) => {
+  const dashboard = await dashboardsRepository.findById(id);
+  if (!dashboard) {
+    throw new NotFoundError("Dashboard not found");
+  }
+
+  await dashboardsRepository.deactivate(id);
+
+  return await dashboardsRepository.findById(id);
 };
 
 exports.assignDashboardToUser = async (dashboardId, targetUserId, adminUserId) => {
@@ -458,18 +390,7 @@ exports.bulkAssignDashboardsToUser = async (targetUserId, dashboardIds, adminUse
   const uniqueDashboardIds = [...new Set(dashboardIds.map((id) => parseInt(id)))].filter((id) => !Number.isNaN(id));
 
   // Get current direct assignments for the user
-  const currentRows = await db
-    .select({
-      dashboardId: usersDashboards.dashboardsId,
-    })
-    .from(usersDashboards)
-    .where(
-      and(
-        eq(usersDashboards.idUsers, targetUserId),
-        eq(usersDashboards.active, true),
-        isNull(usersDashboards.deletedAt)
-      )
-    );
+  const currentRows = await dashboardsRepository.findActiveAssignmentsForUser(targetUserId);
 
   const currentIds = new Set(currentRows.map((row) => row.dashboardId));
   const desiredIds = new Set(uniqueDashboardIds);
@@ -494,91 +415,15 @@ exports.bulkAssignDashboardsToUser = async (targetUserId, dashboardIds, adminUse
 };
 
 exports.getDashboardsAssignableToUser = async (targetUserId, adminUserId) => {
-  const userRows = await db
-    .select({
-      accountsId: users.accountsId,
-    })
-    .from(users)
-    .where(and(eq(users.id, targetUserId), eq(users.active, true), isNull(users.deletedAt)))
-    .limit(1);
+  const userRows = await dashboardsRepository.findActiveUserById(targetUserId);
 
-  if (!userRows.length) {
+  if (!userRows) {
     throw new NotFoundError("User not found");
   }
 
-  const targetAccountId = userRows[0].accountsId;
+  const targetAccountId = userRows.accountId;
 
-  // If user has no account (e.g., root admin user), return all active dashboards
-  if (!targetAccountId) {
-    const rows = await db
-      .select({
-        id: dashboardsTable.id,
-        supersetId: dashboardsTable.supersetId,
-        embeddedId: dashboardsTable.embeddedId,
-        name: dashboardsTable.name,
-        reportId: dashboardsTable.reportId,
-        active: dashboardsTable.active,
-        createdAt: dashboardsTable.createdAt,
-        updatedAt: dashboardsTable.updatedAt,
-      })
-      .from(dashboardsTable)
-      .innerJoin(
-        reportsTable,
-        and(eq(dashboardsTable.reportId, reportsTable.id), eq(reportsTable.active, true), isNull(reportsTable.deletedAt))
-      )
-      .innerJoin(
-        workspacesTable,
-        and(eq(reportsTable.workspacesId, workspacesTable.id), eq(workspacesTable.active, true), isNull(workspacesTable.deletedAt))
-      )
-      .where(and(eq(dashboardsTable.active, true), isNull(dashboardsTable.deletedAt)));
-
-    return rows;
-  }
-
-  // For tenant users, return dashboards whose workspace is enabled for their account
-  const rows = await db
-    .select({
-      id: dashboardsTable.id,
-      supersetId: dashboardsTable.supersetId,
-      embeddedId: dashboardsTable.embeddedId,
-      name: dashboardsTable.name,
-      reportId: dashboardsTable.reportId,
-      active: dashboardsTable.active,
-      createdAt: dashboardsTable.createdAt,
-      updatedAt: dashboardsTable.updatedAt,
-    })
-    .from(dashboardsTable)
-    .innerJoin(
-      reportsTable,
-      and(eq(dashboardsTable.reportId, reportsTable.id), eq(reportsTable.active, true), isNull(reportsTable.deletedAt))
-    )
-    .innerJoin(
-      workspacesTable,
-      and(eq(reportsTable.workspacesId, workspacesTable.id), eq(workspacesTable.active, true), isNull(workspacesTable.deletedAt))
-    )
-    .innerJoin(
-      accountsInstancesWorkspaces,
-      and(
-        eq(accountsInstancesWorkspaces.idWorkspaces, workspacesTable.id),
-        eq(accountsInstancesWorkspaces.active, true),
-        isNull(accountsInstancesWorkspaces.deletedAt)
-      )
-    )
-    .innerJoin(
-      accountsInstances,
-      and(
-        eq(accountsInstances.id, accountsInstancesWorkspaces.idAccountsInstances),
-        eq(accountsInstances.active, true),
-        isNull(accountsInstances.deletedAt)
-      )
-    )
-    .where(
-      and(
-        eq(dashboardsTable.active, true),
-        isNull(dashboardsTable.deletedAt),
-        eq(accountsInstances.accountsId, targetAccountId)
-      )
-    );
+  const rows = await dashboardsRepository.findDashboardsAssignableToUser(targetAccountId);
 
   // Deduplicate dashboards by id in case a workspace is linked to multiple instances
   const byId = new Map();

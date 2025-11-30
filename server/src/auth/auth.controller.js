@@ -6,7 +6,7 @@ exports.signIn = async (req, res, next) => {
     const { identifier, password, subdomain } = req.body;
 
     if (!identifier || !password) {
-      throw new ValidationError("Usuario/email y contraseña son requeridos");
+      throw new ValidationError("Correo electrónico y contraseña son requeridos");
     }
 
     const { user, token } = await authServices.signIn(identifier, password, subdomain);
@@ -83,16 +83,6 @@ exports.checkStatus = async (req, res, next) => {
       authenticated: isValid,
       userId: isValid ? userId : null,
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.timeAvailableInSession = async (req, res, next) => {
-  const { userId } = req;
-  const time = await authServices.timeAvailableInSession(userId);
-  try {
-    res.send({ time });
   } catch (error) {
     next(error);
   }

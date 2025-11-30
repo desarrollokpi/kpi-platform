@@ -1,3 +1,4 @@
+import { clearMessage, handleError, setLoading } from "../common/utils";
 import {
   ERROR,
   LOADING,
@@ -19,26 +20,12 @@ import {
 
 import axios from "axios";
 
-import { config } from "../../util/state";
-
-const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
-
-export const handleError = (dispatch, error) => {
-  dispatch({ type: ERROR, payload: error.response.data });
-  setTimeout(() => {
-    dispatch({
-      type: CLEAR_MESSAGE,
-      payload: error.response.data.message,
-    });
-  }, 3000);
-};
-
 export const clearReports = () => (dispatch) => {
   return dispatch({ type: CLEAR_REPORTS });
 };
 
 export const readReportGroupsByAdmin = () => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const res = await axios.get("/reports/groups");
     dispatch({
@@ -46,29 +33,33 @@ export const readReportGroupsByAdmin = () => async (dispatch) => {
       payload: res.data,
     });
   } catch (error) {
-    handleError(dispatch, error);
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
-export const readReportsByAdmin = (filters = {}) => async (dispatch) => {
-  setLoading(dispatch, true);
-  try {
-    const res = await axios.get("/reports", { params: filters });
-    dispatch({
-      type: READ_REPORTS_BY_ADMIN,
-      payload: res.data,
-    });
-  } catch (error) {
-    handleError(dispatch, error);
-  } finally {
-    setLoading(dispatch, false);
-  }
-};
+export const readReportsByAdmin =
+  (filters = {}) =>
+  async (dispatch) => {
+    setLoading(dispatch, true, LOADING);
+    try {
+      const res = await axios.get("/reports", { params: filters });
+      dispatch({
+        type: READ_REPORTS_BY_ADMIN,
+        payload: res.data,
+      });
+    } catch (error) {
+      handleError(dispatch, ERROR, error);
+    } finally {
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
+    }
+  };
 
 export const readReportsByUser = () => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const res = await axios.get("/reports/users");
     dispatch({
@@ -76,14 +67,15 @@ export const readReportsByUser = () => async (dispatch) => {
       payload: res.data,
     });
   } catch (error) {
-    handleError(dispatch, error);
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const readAccountReportsByAdmin = () => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const res = await axios.get("/reports/account");
     dispatch({
@@ -91,96 +83,92 @@ export const readAccountReportsByAdmin = () => async (dispatch) => {
       payload: res.data,
     });
   } catch (error) {
-    handleError(dispatch, error);
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
-// deprecated
-// export const readUsersReportsByAdmin = () => async dispatch => {
-//   setLoading()(dispatch)
-//   try {
-//     const res = await axios.get('/reports/users')
-//     dispatch({
-//       type: READ_USERS_REPORTS_BY_ADMIN,
-//       payload: res.data,
-//     })
-//   } catch (error) {
-//     handleError(dispatch, error)
-//   }
-// }
-
 export const updateReportActiveStateByAdmin = (active, reportId, workspaceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
 
   try {
-    const res = await axios.put(`/reports/toggleActive/${reportId}`, { active, workspaceId }, config);
+    const res = await axios.put(`/reports/toggleActive/${reportId}`, { active, workspaceId });
     dispatch({ type: UPDATE_REPORT_ACTIVE_STATE_BY_ADMIN, payload: res.data });
   } catch (error) {
-    dispatch({ type: ERROR, payload: error.response.data.message });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const updateReportsGroup = (reportsGroup) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
 
   try {
-    const res = await axios.put(`/reports/groups/${reportsGroup.id}`, reportsGroup, config);
+    const res = await axios.put(`/reports/groups/${reportsGroup.id}`, reportsGroup);
     dispatch({ type: UPDATE_REPORTS_GROUP, payload: res.data });
   } catch (error) {
-    dispatch({ type: ERROR, payload: error.response.data.message });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const createReportsGroup = (reportsGroup) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
 
   try {
-    const res = await axios.post(`/reports/groups/`, reportsGroup, config);
+    const res = await axios.post(`/reports/groups/`, reportsGroup);
     dispatch({ type: CREATE_REPORTS_GROUP, payload: res.data });
   } catch (error) {
-    dispatch({ type: ERROR, payload: error.response.data.message });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Activate report
 export const activateReport = (reportId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
-    const res = await axios.post(`/reports/${reportId}/activate`);
-    dispatch({ type: READ_REPORTS_BY_ADMIN, payload: res.data });
+    const { data } = await axios.post(`/reports/${reportId}/activate`);
+    dispatch({
+      type: UPDATE_REPORT,
+      payload: data.report || data,
+    });
   } catch (error) {
-    handleError(dispatch, error);
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Deactivate report
 export const deactivateReport = (reportId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
-    const res = await axios.post(`/reports/${reportId}/deactivate`);
-    dispatch({ type: READ_REPORTS_BY_ADMIN, payload: res.data });
+    const { data } = await axios.post(`/reports/${reportId}/deactivate`);
+    dispatch({
+      type: UPDATE_REPORT,
+      payload: data.report || data,
+    });
   } catch (error) {
-    handleError(dispatch, error);
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
-const extractErrorMessage = (error) => error?.response?.data?.message || error?.message || "Error inesperado";
-
 // Get report by ID
 export const getReportById = (reportId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/reports/${reportId}`);
     dispatch({
@@ -188,57 +176,54 @@ export const getReportById = (reportId) => async (dispatch) => {
       payload: data.report || data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Create report
 export const createReport = (reportData) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post("/reports", reportData);
     dispatch({
       type: CREATE_REPORT,
       payload: data.report || data,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Update report
-export const updateReport = (reportData) => async (dispatch) => {
-  setLoading(dispatch, true);
+export const updateReport = (id, reportData) => async (dispatch) => {
+  setLoading(dispatch, true, LOADING);
   try {
-    const { id, ...updateData } = reportData;
-    const { data } = await axios.put(`/reports/${id}`, updateData);
+    const { data } = await axios.put(`/reports/${id}`, reportData);
     dispatch({
       type: UPDATE_REPORT,
       payload: data.report || data,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Delete report (soft delete)
 export const deleteReport = (reportId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/reports/${reportId}`);
     dispatch({
@@ -246,30 +231,28 @@ export const deleteReport = (reportId) => async (dispatch) => {
       payload: { reportId, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Get workspaces list for reports (filtered by accountId)
-export const getWorkspacesListForReports = (filters = {}) => async (dispatch) => {
-  setLoading(dispatch, true);
-  try {
-    const { data } = await axios.get("/workspaces", { params: filters });
-    dispatch({
-      type: GET_WORKSPACES_LIST,
-      payload: data.workspaces || data,
-    });
-  } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
-  } finally {
-    setLoading(dispatch, false);
-  }
-};
+export const getWorkspacesListForReports =
+  (filters = {}) =>
+  async (dispatch) => {
+    setLoading(dispatch, true, LOADING);
+    try {
+      const { data } = await axios.get("/workspaces", { params: filters });
+      dispatch({
+        type: GET_WORKSPACES_LIST,
+        payload: data.workspaces || data,
+      });
+    } catch (error) {
+      handleError(dispatch, ERROR, error);
+    } finally {
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
+    }
+  };

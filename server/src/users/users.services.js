@@ -7,11 +7,11 @@ const { ValidationError, NotFoundError, ConflictError, ForbiddenError } = requir
 const { ROLE_NAMES } = require("../constants/roles");
 
 exports.createUser = async (userData) => {
-  const { username, name, mail, password, accountId, roleId } = userData;
+  const { userName, name, mail, password, accountId, roleId } = userData;
 
-  // Validate required fields
-  if (!username || !mail || !password) {
-    throw new ValidationError("Todos los campos son requeridos: username, email, password");
+  // Validate input
+  if (!userName || !name || !mail || !password || !roleId) {
+    throw new ValidationError("Todos los campos son requeridos: userName, name, mail, password, role");
   }
 
   // Validate email format
@@ -31,8 +31,21 @@ exports.createUser = async (userData) => {
     role = await rolesRepository.getRoleByName(ROLE_NAMES.USER);
   }
 
-  // Determine effective accountId based on role
-  let effectiveAccountId = accountId ?? null;
+  let effectiveAccountId = accountId;
+
+  if (effectiveAccountId === "" || effectiveAccountId === undefined) {
+    effectiveAccountId = null;
+  }
+
+  if (effectiveAccountId !== null) {
+    const parsedAccountId = Number.parseInt(effectiveAccountId, 10);
+
+    if (Number.isNaN(parsedAccountId)) {
+      throw new ValidationError("accountId inválido");
+    }
+
+    effectiveAccountId = parsedAccountId;
+  }
 
   if (role.name === ROLE_NAMES.ROOT_ADMIN) {
     // Root admin must not be tied to an account
@@ -40,7 +53,7 @@ exports.createUser = async (userData) => {
   } else {
     // For non-root roles, accountId is required and must be valid
     if (!effectiveAccountId) {
-      throw new ValidationError("Todos los campos son requeridos: username, email, password, accountId");
+      throw new ValidationError("Todos los campos son requeridos: userName, email, password, accountId");
     }
 
     const account = await accountsRepository.findById(effectiveAccountId);
@@ -53,12 +66,6 @@ exports.createUser = async (userData) => {
     }
   }
 
-  // Check if username already exists
-  const usernameExists = await usersRepository.usernameExists(username);
-  if (usernameExists) {
-    throw new ConflictError(`El nombre de usuario "${username}" ya está en uso`);
-  }
-
   // Check if email already exists
   const emailExists = await usersRepository.emailExists(mail);
   if (emailExists) {
@@ -68,19 +75,22 @@ exports.createUser = async (userData) => {
   // Hash password
   const hashedPassword = await encrypt.hash(password);
 
-  // Create user
-  const result = await usersRepository.createUser({
-    username,
+  // Prepare payload for repository (always include accountId, even when null,
+  // so the DB explicitly receives NULL for root_admin users)
+  const insertPayload = {
+    userName,
     name,
     mail,
     password: hashedPassword,
     accountId: effectiveAccountId,
-  });
+  };
 
+  // Create user
+  const result = await usersRepository.createUser(insertPayload);
   const userId = result.insertId;
 
   try {
-    permissionsService.validateRoleAssignment(role.name, effectiveAccountId);
+    await permissionsService.validateRoleAssignment(role.name, effectiveAccountId);
   } catch (error) {
     await usersRepository.deleteUser(userId);
     throw error;
@@ -111,7 +121,7 @@ exports.getUserProfile = async (id) => {
     throw new NotFoundError("Usuario no encontrado");
   }
 
-  const account = await accountsRepository.findById(user.accountsId);
+  const account = await accountsRepository.findById(user.accountId);
 
   // Remove password
   delete user.password;
@@ -130,16 +140,16 @@ exports.getUserProfile = async (id) => {
 };
 
 exports.getAllUsers = async (options = {}) => {
-  const { active, accountsId, limit = 20, offset = 0 } = options;
+  const { active, accountId, limit = 20, offset = 0 } = options;
 
   const users = await usersRepository.findAll({
     active,
-    accountsId,
+    accountId,
     limit,
     offset,
   });
 
-  const totalCount = await usersRepository.count(active, accountsId);
+  const totalCount = await usersRepository.count(active, accountId);
 
   // Enrich users with roles and remove password
   const usersWithRoles = await Promise.all(
@@ -162,6 +172,15 @@ exports.getAllUsers = async (options = {}) => {
   };
 };
 
+exports.getUsersForSelect = async (options = {}) => {
+  const { active = true, accountId } = options;
+
+  return await usersRepository.getForSelect({
+    active,
+    accountId,
+  });
+};
+
 exports.getUsersByAccount = async (accountId, requestingUserId) => {
   // Check if requesting user is root admin
   const isRootAdmin = await rolesRepository.userHasRole(requestingUserId, ROLE_NAMES.ROOT_ADMIN);
@@ -169,7 +188,7 @@ exports.getUsersByAccount = async (accountId, requestingUserId) => {
   // If not root admin, verify they belong to the requested account
   if (!isRootAdmin) {
     const requestingUser = await usersRepository.findById(requestingUserId);
-    if (!requestingUser || requestingUser.accountsId !== accountId) {
+    if (!requestingUser || requestingUser.accountId !== accountId) {
       throw new ForbiddenError("No tienes permiso para acceder a los usuarios de esta cuenta");
     }
   }
@@ -189,7 +208,7 @@ exports.getUsersByAccount = async (accountId, requestingUserId) => {
 };
 
 exports.updateUser = async (id, updateData) => {
-  const { username, mail, name, roleId } = updateData;
+  const { userName, mail, name, roleId } = updateData;
 
   // Check if user exists
   const user = await usersRepository.findById(id);
@@ -199,13 +218,9 @@ exports.updateUser = async (id, updateData) => {
 
   const dataToUpdate = {};
 
-  // Check username uniqueness if being updated
-  if (username && username !== user.userName) {
-    const usernameExists = await usersRepository.usernameExists(username, id);
-    if (usernameExists) {
-      throw new ConflictError(`El nombre de usuario "${username}" ya está en uso`);
-    }
-    dataToUpdate.username = username;
+  // Update userName if provided (no uniqueness constraint at domain level)
+  if (userName && userName !== user.userName) {
+    dataToUpdate.userName = userName;
   }
 
   // Check email uniqueness if being updated
@@ -234,7 +249,7 @@ exports.updateUser = async (id, updateData) => {
     }
 
     // Validate role assignment against business rules
-    permissionsService.validateRoleAssignment(newRole.name, user.accountsId);
+    permissionsService.validateRoleAssignment(newRole.name, user.accountId);
 
     // Get current roles for the user
     const currentRoles = await rolesRepository.getUserRoles(id);
@@ -307,9 +322,9 @@ exports.assignRole = async (userId, roleName) => {
   }
 
   // Validate role assignment according to business rules
-  // root_admin can only be assigned to users with accountsId = NULL
-  // tenant_admin/tenant_user must have valid accountsId
-  permissionsService.validateRoleAssignment(roleName, user.accountsId);
+  // root_admin can only be assigned to users with accountId = NULL
+  // tenant_admin/tenant_user must have valid accountId
+  permissionsService.validateRoleAssignment(roleName, user.accountId);
 
   await rolesRepository.assignRoleToUser(userId, role.id);
 };

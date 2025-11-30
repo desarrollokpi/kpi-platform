@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "ed50706b-321d-4124-87c3-79ab9c4148a7",
-  "prevId": "538849d3-46de-4a6a-be22-6203f41ce2a7",
+  "id": "d53c2b68-0300-4f68-8e0b-316e26fa4225",
+  "prevId": "0bfbe861-0532-4607-af5d-d27d04d002ce",
   "tables": {
     "accounts": {
       "name": "accounts",
@@ -106,7 +106,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "accounts_subDomain_unique": {
+          "name": "accounts_subDomain_unique",
+          "columns": [
+            "subDomain"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "accountContract": {
@@ -119,8 +126,8 @@
           "notNull": true,
           "autoincrement": true
         },
-        "idAccounts": {
-          "name": "idAccounts",
+        "accountId": {
+          "name": "accountId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -174,12 +181,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "accountContract_idAccounts_accounts_id_fk": {
-          "name": "accountContract_idAccounts_accounts_id_fk",
+        "accountContract_accountId_accounts_id_fk": {
+          "name": "accountContract_accountId_accounts_id_fk",
           "tableFrom": "accountContract",
           "tableTo": "accounts",
           "columnsFrom": [
-            "idAccounts"
+            "accountId"
           ],
           "columnsTo": [
             "id"
@@ -209,8 +216,8 @@
           "notNull": true,
           "autoincrement": true
         },
-        "supersetId": {
-          "name": "supersetId",
+        "instanceId": {
+          "name": "instanceId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -291,10 +298,10 @@
           ],
           "isUnique": false
         },
-        "dashboardsSupersetIdx": {
-          "name": "dashboardsSupersetIdx",
+        "dashboardsInstanceIdx": {
+          "name": "dashboardsInstanceIdx",
           "columns": [
-            "supersetId"
+            "instanceId"
           ],
           "isUnique": false
         }
@@ -335,15 +342,15 @@
           "notNull": true,
           "autoincrement": true
         },
-        "idUsers": {
-          "name": "idUsers",
+        "userId": {
+          "name": "userId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "dashboardsId": {
-          "name": "dashboardsId",
+        "dashboardId": {
+          "name": "dashboardId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -385,14 +392,14 @@
         "udUserIdx": {
           "name": "udUserIdx",
           "columns": [
-            "idUsers"
+            "userId"
           ],
           "isUnique": false
         },
         "udDashboardIdx": {
           "name": "udDashboardIdx",
           "columns": [
-            "dashboardsId"
+            "dashboardId"
           ],
           "isUnique": false
         },
@@ -406,19 +413,19 @@
         "udUserActiveIdx": {
           "name": "udUserActiveIdx",
           "columns": [
-            "idUsers",
+            "userId",
             "active"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "usersDashboards_idUsers_users_id_fk": {
-          "name": "usersDashboards_idUsers_users_id_fk",
+        "usersDashboards_userId_users_id_fk": {
+          "name": "usersDashboards_userId_users_id_fk",
           "tableFrom": "usersDashboards",
           "tableTo": "users",
           "columnsFrom": [
-            "idUsers"
+            "userId"
           ],
           "columnsTo": [
             "id"
@@ -426,12 +433,12 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "usersDashboards_dashboardsId_dashboards_id_fk": {
-          "name": "usersDashboards_dashboardsId_dashboards_id_fk",
+        "usersDashboards_dashboardId_dashboards_id_fk": {
+          "name": "usersDashboards_dashboardId_dashboards_id_fk",
           "tableFrom": "usersDashboards",
           "tableTo": "dashboards",
           "columnsFrom": [
-            "dashboardsId"
+            "dashboardId"
           ],
           "columnsTo": [
             "id"
@@ -461,8 +468,8 @@
           "notNull": true,
           "autoincrement": true
         },
-        "accountsId": {
-          "name": "accountsId",
+        "accountId": {
+          "name": "accountId",
           "type": "int",
           "primaryKey": false,
           "notNull": false,
@@ -546,18 +553,18 @@
         "usersAccountIdx": {
           "name": "usersAccountIdx",
           "columns": [
-            "accountsId"
+            "accountId"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "users_accountsId_accounts_id_fk": {
-          "name": "users_accountsId_accounts_id_fk",
+        "users_accountId_accounts_id_fk": {
+          "name": "users_accountId_accounts_id_fk",
           "tableFrom": "users",
           "tableTo": "accounts",
           "columnsFrom": [
-            "accountsId"
+            "accountId"
           ],
           "columnsTo": [
             "id"
@@ -574,7 +581,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "users_mail_unique": {
+          "name": "users_mail_unique",
+          "columns": [
+            "mail"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "roles": {
@@ -657,15 +671,15 @@
           "notNull": true,
           "autoincrement": true
         },
-        "usersId": {
-          "name": "usersId",
+        "userId": {
+          "name": "userId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "rolesId": {
-          "name": "rolesId",
+        "roleId": {
+          "name": "roleId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -707,33 +721,33 @@
         "usersRolesUnique": {
           "name": "usersRolesUnique",
           "columns": [
-            "usersId",
-            "rolesId"
+            "userId",
+            "roleId"
           ],
           "isUnique": true
         },
         "usersRolesUserIdx": {
           "name": "usersRolesUserIdx",
           "columns": [
-            "usersId"
+            "userId"
           ],
           "isUnique": false
         },
         "usersRolesRoleIdx": {
           "name": "usersRolesRoleIdx",
           "columns": [
-            "rolesId"
+            "roleId"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "usersRoles_usersId_users_id_fk": {
-          "name": "usersRoles_usersId_users_id_fk",
+        "usersRoles_userId_users_id_fk": {
+          "name": "usersRoles_userId_users_id_fk",
           "tableFrom": "usersRoles",
           "tableTo": "users",
           "columnsFrom": [
-            "usersId"
+            "userId"
           ],
           "columnsTo": [
             "id"
@@ -741,12 +755,12 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "usersRoles_rolesId_roles_id_fk": {
-          "name": "usersRoles_rolesId_roles_id_fk",
+        "usersRoles_roleId_roles_id_fk": {
+          "name": "usersRoles_roleId_roles_id_fk",
           "tableFrom": "usersRoles",
           "tableTo": "roles",
           "columnsFrom": [
-            "rolesId"
+            "roleId"
           ],
           "columnsTo": [
             "id"
@@ -867,15 +881,15 @@
           "notNull": true,
           "autoincrement": true
         },
-        "accountsId": {
-          "name": "accountsId",
+        "accountId": {
+          "name": "accountId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "instancesId": {
-          "name": "instancesId",
+        "instanceId": {
+          "name": "instanceId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -917,33 +931,33 @@
         "aiUnique": {
           "name": "aiUnique",
           "columns": [
-            "accountsId",
-            "instancesId"
+            "accountId",
+            "instanceId"
           ],
           "isUnique": true
         },
         "aiAccountIdx": {
           "name": "aiAccountIdx",
           "columns": [
-            "accountsId"
+            "accountId"
           ],
           "isUnique": false
         },
         "aiIntanceIdx": {
           "name": "aiIntanceIdx",
           "columns": [
-            "instancesId"
+            "instanceId"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "accountsInstances_accountsId_accounts_id_fk": {
-          "name": "accountsInstances_accountsId_accounts_id_fk",
+        "accountsInstances_accountId_accounts_id_fk": {
+          "name": "accountsInstances_accountId_accounts_id_fk",
           "tableFrom": "accountsInstances",
           "tableTo": "accounts",
           "columnsFrom": [
-            "accountsId"
+            "accountId"
           ],
           "columnsTo": [
             "id"
@@ -951,12 +965,12 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "accountsInstances_instancesId_instances_id_fk": {
-          "name": "accountsInstances_instancesId_instances_id_fk",
+        "accountsInstances_instanceId_instances_id_fk": {
+          "name": "accountsInstances_instanceId_instances_id_fk",
           "tableFrom": "accountsInstances",
           "tableTo": "instances",
           "columnsFrom": [
-            "instancesId"
+            "instanceId"
           ],
           "columnsTo": [
             "id"
@@ -1048,15 +1062,15 @@
           "notNull": true,
           "autoincrement": true
         },
-        "idAccountsInstances": {
-          "name": "idAccountsInstances",
+        "accountInstanceId": {
+          "name": "accountInstanceId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "idWorkspaces": {
-          "name": "idWorkspaces",
+        "workspaceId": {
+          "name": "workspaceId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -1098,22 +1112,22 @@
         "aiwUnique": {
           "name": "aiwUnique",
           "columns": [
-            "idAccountsInstances",
-            "idWorkspaces"
+            "accountInstanceId",
+            "workspaceId"
           ],
           "isUnique": true
         },
         "aiwAiIdx": {
           "name": "aiwAiIdx",
           "columns": [
-            "idAccountsInstances"
+            "accountInstanceId"
           ],
           "isUnique": false
         },
         "aiwWorkspaceIdx": {
           "name": "aiwWorkspaceIdx",
           "columns": [
-            "idWorkspaces"
+            "workspaceId"
           ],
           "isUnique": false
         },
@@ -1131,7 +1145,7 @@
           "tableFrom": "accountsInstancesWorkspaces",
           "tableTo": "accountsInstances",
           "columnsFrom": [
-            "idAccountsInstances"
+            "accountInstanceId"
           ],
           "columnsTo": [
             "id"
@@ -1144,7 +1158,7 @@
           "tableFrom": "accountsInstancesWorkspaces",
           "tableTo": "workspaces",
           "columnsFrom": [
-            "idWorkspaces"
+            "workspaceId"
           ],
           "columnsTo": [
             "id"
@@ -1174,8 +1188,8 @@
           "notNull": true,
           "autoincrement": true
         },
-        "workspacesId": {
-          "name": "workspacesId",
+        "workspaceId": {
+          "name": "workspaceId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -1224,7 +1238,7 @@
         "reportsWorkspaceIdx": {
           "name": "reportsWorkspaceIdx",
           "columns": [
-            "workspacesId"
+            "workspaceId"
           ],
           "isUnique": false
         },
@@ -1237,12 +1251,12 @@
         }
       },
       "foreignKeys": {
-        "reports_workspacesId_workspaces_id_fk": {
-          "name": "reports_workspacesId_workspaces_id_fk",
+        "reports_workspaceId_workspaces_id_fk": {
+          "name": "reports_workspaceId_workspaces_id_fk",
           "tableFrom": "reports",
           "tableTo": "workspaces",
           "columnsFrom": [
-            "workspacesId"
+            "workspaceId"
           ],
           "columnsTo": [
             "id"

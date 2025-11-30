@@ -1,22 +1,22 @@
 const instancesRepository = require("./instances.repository");
 const accountsRepository = require("../accounts/accounts.repository");
-const { ValidationError, NotFoundError, ConflictError } = require("../common/exception");
-const { createApacheSuperSetClient } = require("../apache-superset/apache-superset.service");
+const { ValidationError, NotFoundError, ConflictError, UnauthorizedError } = require("../common/exception");
+const { createApacheSuperSetClient } = require("../integrations/apache-superset.service");
 
 const mapInstanceWithAccounts = async (instance) => {
   if (!instance) return null;
 
   const rows = await instancesRepository.findAccountsByIntance(instance.id);
-  const accountsIds = rows.map((row) => row.id);
+  const accountIds = rows.map((row) => row.id);
 
   return {
     ...instance,
-    accountsIds,
+    accountIds,
   };
 };
 
 exports.createIntance = async (intanceData) => {
-  const { name, baseUrl, apiUserName, apiPassword, accountsId = [] } = intanceData;
+  const { name, baseUrl, apiUserName, apiPassword, accountIds = [] } = intanceData;
 
   if (!name || !baseUrl) {
     throw new ValidationError("El nombre y baseUrl son requeridos");
@@ -43,7 +43,7 @@ exports.createIntance = async (intanceData) => {
     const instanceId = result.insertId;
 
     try {
-      for (const accountId of accountsId) {
+      for (const accountId of accountIds) {
         if (accountId) {
           const account = await accountsRepository.findById(accountId);
           if (!account) {
@@ -78,10 +78,10 @@ exports.getIntanceById = async (id) => {
 exports.getAllInstances = async (options = {}) => {
   const rows = await instancesRepository.findAll(options);
 
-  // Normalize accountsIdsRaw -> accountsIds (array of numbers)
+  // Normalize accountsIdsRaw -> accountIds (array of numbers)
   return rows.map((row) => {
     const { accountsIdsRaw, ...rest } = row;
-    const accountsId =
+    const accountIds =
       typeof accountsIdsRaw === "string" && accountsIdsRaw.length > 0
         ? accountsIdsRaw
             .split(",")
@@ -91,7 +91,7 @@ exports.getAllInstances = async (options = {}) => {
 
     return {
       ...rest,
-      accountsId,
+      accountIds,
     };
   });
 };
@@ -122,15 +122,17 @@ exports.updateIntance = async (id, updateData) => {
   }
 
   // Separate accounts associations from instance core data
-  const { accountsId, ...instanceData } = updateData;
+  const { accountIds, ...instanceData } = updateData;
 
   const client = createApacheSuperSetClient(instanceData);
+  console.log("123123");
   const instanceWorking = await client.testConnection();
+  console.log("instanceWorking", instanceWorking);
 
   if (instanceWorking) {
-    // If accountsId is provided, sync associations
-    if (Array.isArray(accountsId)) {
-      const desiredIds = [...new Set(accountsId.filter((a) => a))];
+    // If accountIds is provided, sync associations
+    if (Array.isArray(accountIds)) {
+      const desiredIds = [...new Set(accountIds.filter((a) => a))];
 
       // Validate all accounts exist before changing anything
       for (const accId of desiredIds) {
@@ -141,10 +143,10 @@ exports.updateIntance = async (id, updateData) => {
       }
 
       const currentRelations = await instancesRepository.findAccountInstancesByInstance(id);
-      const currentIds = currentRelations.map((rel) => rel.accountsId);
+      const currentIds = currentRelations.map((rel) => rel.accountId);
 
       const toAdd = desiredIds.filter((accId) => !currentIds.includes(accId));
-      const toRemove = currentRelations.filter((rel) => !desiredIds.includes(rel.accountsId));
+      const toRemove = currentRelations.filter((rel) => !desiredIds.includes(rel.accountId));
 
       for (const accId of toAdd) {
         await instancesRepository.associateAccountIntance(accId, id);
@@ -164,7 +166,7 @@ exports.updateIntance = async (id, updateData) => {
     return await mapInstanceWithAccounts(instance);
   }
 
-  throw new Error("Connection failed");
+  throw new UnauthorizedError("No nos pudimos conectar a los datos enviados al Apache Superset revise sus credenciales");
 };
 
 exports.deleteIntance = async (id) => {
@@ -185,6 +187,19 @@ exports.activateIntance = async (id) => {
   }
 
   await instancesRepository.activate(id);
+
+  const updated = await instancesRepository.findById(id);
+  return await mapInstanceWithAccounts(updated);
+};
+
+exports.deactivateIntance = async (id) => {
+  const intance = await instancesRepository.findById(id);
+
+  if (!intance) {
+    throw new NotFoundError("Instancia no encontrada");
+  }
+
+  await instancesRepository.deactivate(id);
 
   const updated = await instancesRepository.findById(id);
   return await mapInstanceWithAccounts(updated);

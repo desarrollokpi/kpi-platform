@@ -1,4 +1,4 @@
-import { ERROR, LOADING, READ_PROFILE, SIGN_IN, CLEAR_MESSAGE, SIGN_OUT, TIME_AVAILABLE } from "./authTypes";
+import { ERROR, LOADING, READ_PROFILE, SIGN_IN, CLEAR_MESSAGE, SIGN_OUT } from "./authTypes";
 
 const initialState = {
   loading: false,
@@ -6,7 +6,6 @@ const initialState = {
   isAuthenticated: false,
   user: null,
   userLogo: null,
-  timeAvailable: null,
 };
 
 const authReducer = (state = initialState, action) => {
@@ -40,7 +39,6 @@ const authReducer = (state = initialState, action) => {
         loading: false,
         isAuthenticated: shouldInvalidate ? false : state.isAuthenticated,
         user: shouldInvalidate ? null : state.user,
-        timeAvailable: shouldInvalidate ? null : state.timeAvailable,
         message: {
           text: action.payload?.message || action.payload || "Error",
           severity: "error",
@@ -52,13 +50,6 @@ const authReducer = (state = initialState, action) => {
       return {
         ...initialState,
         loading: false,
-      };
-
-    case TIME_AVAILABLE:
-      return {
-        ...state,
-        loading: false,
-        timeAvailable: action.payload?.time ?? null,
       };
 
     default:

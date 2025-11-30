@@ -23,8 +23,8 @@ const UsersList = () => {
 
   const [page, setPage] = useState(() => {
     const pageParam = searchParams.get("page");
-    const parsed = pageParam ? parseInt(pageParam, 10) : 0;
-    return Number.isNaN(parsed) ? 0 : parsed;
+    const parsed = pageParam ? parseInt(pageParam, 10) : 1;
+    return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
   });
   const [rowsPerPage, setRowsPerPage] = useState(() => {
     const rppParam = searchParams.get("rowsPerPage");
@@ -36,7 +36,7 @@ const UsersList = () => {
 
   const { users, loading, totalCount } = useSelector(({ users }) => users, shallowEqual);
   const { user } = useSelector(({ auth }) => auth, shallowEqual);
-  const accountsId = useMemo(() => user?.accountId, [user]);
+  const accountId = useMemo(() => user?.accountId, [user]);
   const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
 
   const toggleActive = useCallback(
@@ -66,7 +66,7 @@ const UsersList = () => {
       ),
       color: "primary",
       icon: <DashboardIcon />,
-      hidden: (userItem) => !userItem.accountsId,
+      hidden: (userItem) => !userItem.accountId || (Array.isArray(userItem.roles) && userItem.roles.some((role) => role.name === "tenant_admin")),
     },
     {
       tooltip: "Editar usuario",
@@ -92,12 +92,9 @@ const UsersList = () => {
     },
     {
       tooltip: "Eliminar usuario",
-      onClick: useCallback(
-        (userItem) => {
-          setDeleteTarget(userItem);
-        },
-        []
-      ),
+      onClick: useCallback((userItem) => {
+        setDeleteTarget(userItem);
+      }, []),
       color: "error",
       icon: <DeleteIcon />,
     },
@@ -109,7 +106,7 @@ const UsersList = () => {
 
   const handleRowsPerPageChange = useCallback((newRowsPerPage) => {
     setRowsPerPage(newRowsPerPage);
-    setPage(0);
+    setPage(1);
   }, []);
 
   const handleSwitchChange = useCallback((event) => {
@@ -132,16 +129,16 @@ const UsersList = () => {
     const filters = {
       active: activeFilter,
       limit: rowsPerPage,
-      offset: page * rowsPerPage,
+      offset: (page - 1) * rowsPerPage,
     };
 
     // Tenant admins should only see users from their account
-    if (isAdmin && accountsId) {
-      filters.accountId = accountsId;
+    if (isAdmin && accountId) {
+      filters.accountId = accountId;
     }
 
     dispatch(readUsers(filters));
-  }, [dispatch, showOnlyActive, page, rowsPerPage, isAdmin, accountsId]);
+  }, [dispatch, showOnlyActive, page, rowsPerPage, isAdmin, accountId]);
 
   if (loading && users.length === 0) {
     return <CircularLoading />;
@@ -192,9 +189,7 @@ const UsersList = () => {
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
         <DialogTitle>Eliminar usuario</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">
-            ¿Seguro que deseas eliminar al usuario "{deleteTarget?.username || deleteTarget?.name}"?
-          </Typography>
+          <Typography variant="body2">¿Seguro que deseas eliminar al usuario "{deleteTarget?.username || deleteTarget?.name}"?</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>

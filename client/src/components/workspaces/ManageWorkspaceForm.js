@@ -1,8 +1,8 @@
 import React from "react";
-import { Typography, Switch, Grid } from "@mui/material";
+import { Typography, Grid } from "@mui/material";
 import FormField from "../layout/FormField";
 
-const ManageWorkspaceForm = ({ workspaceId, bindField, active, instances, handleSwitchChange, isSuperuser, accounts, loading, accountId }) => {
+const ManageWorkspaceForm = ({ workspaceId, bindField, instances, isSuperuser, accounts, loading, accountId }) => {
   return (
     <Grid container justifyContent="center" spacing={3}>
       <Grid item xs={12}>
@@ -24,10 +24,6 @@ const ManageWorkspaceForm = ({ workspaceId, bindField, active, instances, handle
 
         <FormField label="Instancia Asociada" required>
           <FormField.Select {...bindField("instanceId")} options={instances} optionValue="value" display="label" loading={loading || accountId === ""} />
-        </FormField>
-
-        <FormField label="Workspace Activo" mt={2}>
-          <Switch checked={active} onChange={handleSwitchChange} />
         </FormField>
       </Grid>
 

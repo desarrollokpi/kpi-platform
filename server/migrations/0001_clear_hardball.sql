@@ -1,1 +1,0 @@
-ALTER TABLE `dashboards` ADD `supersetDashboardId` int;

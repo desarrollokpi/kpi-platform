@@ -1,15 +1,16 @@
 import React, { useMemo } from "react";
 import { Grid, Paper, Button, Typography } from "@mui/material";
-import useForm from "../../hooks/useForm";
-import { useDispatch, useSelector } from "react-redux";
-import { createAccount, updateAccount } from "../../state/accounts/accountsActions";
+import { shallowEqual, useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
-import useToggle from "../../hooks/useToggle";
+import LoadingButton from "@mui/lab/LoadingButton";
+import useForm from "../../hooks/useForm";
 import useNavigateAfterAction from "../../hooks/useNavigateAfterAction";
 import useSuperuser from "../../hooks/useSuperuser";
-import LoadingButton from "@mui/lab/LoadingButton";
+import { createAccount, updateAccount } from "../../state/accounts/accountsActions";
 import ManageAccountForm from "./ManageAccountForm";
 import CircularLoading from "../layout/CircularLoading";
+
+const COLUMNS = ["name", "subDomain", "dataBase", "keyUser", "password", "logoAddress"];
 
 const ManageAccount = () => {
   const dispatch = useDispatch();
@@ -17,32 +18,39 @@ const ManageAccount = () => {
   const { isSuperuser } = useSuperuser();
   const { accountId } = useParams();
 
-  const { accounts, loading } = useSelector((state) => state.accounts);
+  const { accounts, loading, message } = useSelector(({ accounts }) => accounts, shallowEqual);
 
-  const prefixRoute = useMemo(() => (isSuperuser ? "superusers" : "admins"), [isSuperuser]);
+  const thisInfo = useMemo(() => {
+    if (!accountId) return null;
+    const id = Number(accountId);
+    if (Number.isNaN(id)) return null;
+    return accounts.find((account) => account.id === id) || null;
+  }, [accountId, accounts]);
 
-  const initialState = {
-    name: "",
-    subDomain: "",
-    dataBase: "",
-    keyUser: "",
-    password: "",
-    logoAddress: "",
+  const formData = useMemo(() => {
+    return COLUMNS.reduce((acc, column) => {
+      acc[column] = thisInfo?.[column] ?? "";
+      return acc;
+    }, {});
+  }, [thisInfo]);
+
+  const [account, bindField, areFieldsEmpty] = useForm(formData, {
+    allowEmpty: ["logoAddress"],
+  });
+
+  const buttonHasBeenClicked = useNavigateAfterAction(loading, `/superusers/accounts`);
+
+  const handleManageAccount = async () => {
+    const accountData = { ...account };
+    const id = accountId ? Number(accountId) : null;
+
+    const action = await dispatch(id ? updateAccount(id, accountData) : createAccount(accountData));
+
+    if (action) {
+      buttonHasBeenClicked();
+    }
   };
 
-  let thisAccount = undefined;
-
-  if (accountId) {
-    thisAccount = accounts.find((account) => account.id === parseInt(accountId));
-  }
-
-  const buttonHasBeenClicked = useNavigateAfterAction(loading, `/${prefixRoute}/accounts`);
-
-  const [account, bindField, areFieldsEmpty] = useForm(accountId ? thisAccount : initialState);
-
-  const [active, handleSwitchChange] = useToggle(accountId ? thisAccount?.active : true);
-
-  // Solo los superusers pueden gestionar accounts
   if (!isSuperuser) {
     return (
       <Paper className="container">
@@ -56,15 +64,7 @@ const ManageAccount = () => {
     );
   }
 
-  const handleManageAccount = () => {
-    const accountData = { ...account, active };
-
-    dispatch(accountId ? updateAccount(accountData) : createAccount(accountData));
-
-    buttonHasBeenClicked();
-  };
-
-  if (loading && accountId && !thisAccount) {
+  if (loading && accountId && !thisInfo) {
     return (
       <Paper className="container">
         <CircularLoading />
@@ -72,14 +72,14 @@ const ManageAccount = () => {
     );
   }
 
-  if (accountId && !thisAccount && !loading) {
+  if (accountId && !thisInfo && !loading) {
     return (
       <Paper className="container">
         <Typography variant="h6" align="center" color="error">
           Cuenta no encontrada
         </Typography>
         <Grid container justifyContent="center" mt={3}>
-          <Button onClick={() => navigate(`/${prefixRoute}/accounts`)}>Volver a la lista</Button>
+          <Button onClick={() => navigate(`/superusers/accounts`)}>Volver a la lista</Button>
         </Grid>
       </Paper>
     );
@@ -87,16 +87,10 @@ const ManageAccount = () => {
 
   return (
     <Paper className="container">
-      <ManageAccountForm
-        accountId={accountId}
-        bindField={bindField}
-        active={active}
-        handleSwitchChange={handleSwitchChange}
-        logoAddress={account.logoAddress}
-      />
+      <ManageAccountForm accountId={accountId} bindField={bindField} message={message} />
 
       <Grid mt={3} container justifyContent="space-between">
-        <Button onClick={() => navigate(`/${prefixRoute}/accounts`)}>Cancelar</Button>
+        <Button onClick={() => navigate(`/superusers/accounts`)}>Cancelar</Button>
         <LoadingButton onClick={handleManageAccount} variant="contained" loading={loading} disabled={areFieldsEmpty}>
           {accountId ? "Guardar cambios" : "Crear cuenta"}
         </LoadingButton>

@@ -1,3 +1,4 @@
+import { clearMessage, handleError, setLoading } from "../common/utils";
 import {
   ERROR,
   LOADING,
@@ -16,37 +17,28 @@ import {
 } from "./instancesTypes";
 import axios from "axios";
 
-const extractErrorMessage = (error) => error?.response?.data?.message || error?.message || "Unexpected error";
-
-const setLoading = (dispatch, value) => dispatch({ type: LOADING, payload: value });
-
-export const clearMessage = () => (dispatch) => dispatch({ type: CLEAR_MESSAGE });
-
 // Get all instances with optional filters
 export const getAllInstances =
   (filters = {}) =>
   async (dispatch) => {
-    setLoading(dispatch, true);
+    setLoading(dispatch, true, LOADING);
     try {
-      console.log("filters", filters);
       const { data } = await axios.get(`/instances`, { params: filters });
       dispatch({
         type: GET_ALL_INSTANCES,
         payload: data,
       });
     } catch (error) {
-      dispatch({
-        type: ERROR,
-        payload: extractErrorMessage(error),
-      });
+      handleError(dispatch, ERROR, error);
     } finally {
-      setLoading(dispatch, false);
+      setLoading(dispatch, false, LOADING);
+      clearMessage(CLEAR_MESSAGE);
     }
   };
 
 // Get instance by ID
 export const getInstanceById = (instanceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/instances/${instanceId}`);
     dispatch({
@@ -54,56 +46,54 @@ export const getInstanceById = (instanceId) => async (dispatch) => {
       payload: data.intance,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Create instance
 export const createInstance = (instanceData) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/instances`, instanceData);
     dispatch({
       type: CREATE_INSTANCE,
       payload: data.intance,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Update instance
 export const updateInstance = (id, updateData) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.put(`/instances/${id}`, updateData);
     dispatch({
       type: UPDATE_INSTANCE,
       payload: data.intance,
     });
+    return true;
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
+    return false;
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Delete instance (soft delete)
 export const deleteInstance = (instanceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/instances/${instanceId}`);
     dispatch({
@@ -111,18 +101,16 @@ export const deleteInstance = (instanceId) => async (dispatch) => {
       payload: { instanceId, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Activate instance
 export const activateInstance = (instanceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/instances/${instanceId}/activate`);
     dispatch({
@@ -130,18 +118,16 @@ export const activateInstance = (instanceId) => async (dispatch) => {
       payload: data.intance,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Deactivate instance
 export const deactivateInstance = (instanceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/instances/${instanceId}/deactivate`);
     dispatch({
@@ -149,18 +135,16 @@ export const deactivateInstance = (instanceId) => async (dispatch) => {
       payload: data.intance,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Get instances by account
 export const getInstancesByAccount = (accountId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.get(`/instances/account/${accountId}`);
     dispatch({
@@ -168,18 +152,16 @@ export const getInstancesByAccount = (accountId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Assign instance to account
 export const assignInstanceToAccount = (accountId, instanceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/accounts/${accountId}/assignInstance`, { intanceId: instanceId });
     dispatch({
@@ -187,18 +169,16 @@ export const assignInstanceToAccount = (accountId, instanceId) => async (dispatc
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Remove instance from account
 export const removeInstanceFromAccount = (accountId, instanceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.delete(`/accounts/${accountId}/removeInstance/${instanceId}`);
     dispatch({
@@ -206,18 +186,16 @@ export const removeInstanceFromAccount = (accountId, instanceId) => async (dispa
       payload: { accountId, instanceId, message: data.message },
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 // Sync instance workspaces from Superset
 export const syncInstanceWorkspaces = (instanceId) => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
     const { data } = await axios.post(`/instances/${instanceId}/syncWorkspaces`);
     dispatch({
@@ -225,29 +203,25 @@ export const syncInstanceWorkspaces = (instanceId) => async (dispatch) => {
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };
 
 export const getAccountsLists = () => async (dispatch) => {
-  setLoading(dispatch, true);
+  setLoading(dispatch, true, LOADING);
   try {
-    const { data } = await axios.get(`/accounts`, { params: { listed: true } });
+    const { data } = await axios.get(`/accounts`, { params: { mode: "select" } });
     dispatch({
       type: GET_ACCOUNTS_LIST,
       payload: data,
     });
   } catch (error) {
-    dispatch({
-      type: ERROR,
-      payload: extractErrorMessage(error),
-    });
+    handleError(dispatch, ERROR, error);
   } finally {
-    setLoading(dispatch, false);
+    setLoading(dispatch, false, LOADING);
+    clearMessage(CLEAR_MESSAGE);
   }
 };

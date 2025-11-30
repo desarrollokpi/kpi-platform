@@ -24,11 +24,11 @@ const usersRoles = mysqlTable(
   "usersRoles",
   {
     id: int("id").autoincrement().primaryKey(),
-    usersId: int("usersId")
+    userId: int("userId")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
 
-    rolesId: int("rolesId")
+    roleId: int("roleId")
       .notNull()
       .references(() => roles.id, { onDelete: "restrict" }),
     active: boolean("active").notNull().default(true),
@@ -41,7 +41,7 @@ const usersRoles = mysqlTable(
       .default(sql`now()`)
       .$onUpdate(() => new Date()),
   },
-  (t) => [uniqueIndex("usersRolesUnique").on(t.usersId, t.rolesId), index("usersRolesUserIdx").on(t.usersId), index("usersRolesRoleIdx").on(t.rolesId)]
+  (t) => [uniqueIndex("usersRolesUnique").on(t.userId, t.roleId), index("usersRolesUserIdx").on(t.userId), index("usersRolesRoleIdx").on(t.roleId)]
 );
 
 module.exports = { roles, usersRoles };
